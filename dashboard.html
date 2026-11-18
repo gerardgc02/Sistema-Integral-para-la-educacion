@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Control - Sistema RBAC</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="dashboard">
+    <header class="topbar">
+      <div class="user-meta">
+        <div>
+          <strong id="display-name">Usuario</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="display-role">Rol</div>
+        </div>
+        <span id="display-badge" class="badge">LVL 1</span>
+      </div>
+
+      <div class="controls">
+        <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
+      </div>
+    </header>
+
+    <div id="modules-container" class="modules-grid"></div>
+
+    <div class="console-log" id="system-console">
+      [SYS] Esperando interacción...
+    </div>
+  </div>
+
+  <!-- Importamos tu módulo de autenticación intacto -->
+  <script src="js/auth.js"></script>
+  <script>
+    // 1. Verificación de seguridad
+    const currentSession = requireAuth();
+
+    // 2. Catálogo de módulos filtrados por Nivel (1: Alumno, 2: Maestro, 3: Director, 4: Admin)
+    const SYSTEM_MODULES = [
+      // Módulos generales / compartidos (Niveles 1, 2, 3, 4)
+      {
+        id: "MOD_LIBRARY",
+        title: "Biblioteca",
+        desc: "Catálogo de recursos, libros digitales y material de apoyo.",
+        allowedLevels: [1, 2, 3, 4]
+      },
+      {
+        id: "MOD_GRADES",
+        title: "Calificaciones",
+        desc: "Registro y consulta de evaluaciones y notas.",
+        allowedLevels: [1, 2, 3, 4]
+      },
+      {
+        id: "MOD_SCHEDULE",
+        title: "Horario",
+        desc: "Calendario de clases y espacios asignados.",
+        allowedLevels: [1, 2, 3, 4]
+      },
+
+      // Módulos exclusivos de Alumnos (Nivel 1 y Admin 4)
+      {
+        id: "MOD_STUDENT_INFO",
+        title: "Información del Alumno",
+        desc: "Datos personales, expediente académico y estatus de inscripción.",
+        allowedLevels: [1, 4]
+      },
+      {
+        id: "MOD_STUDENT_TASKS",
+        title: "Tareas (Alumnos)",
+        desc: "Entrega de trabajos pendientes y revisión de fechas límite.",
+        allowedLevels: [1]
+      },
+      {
+        id: "MOD_ENROLLED_SUBJECTS",
+        title: "Materias Cursadas",
+        desc: "Listado de asignaturas activas en el periodo actual.",
+        allowedLevels: [1]
+      },
+
+      // Módulos exclusivos de Maestros (Nivel 2 y Admin 4)
+      {
+        id: "MOD_TEACHER_INFO",
+        title: "Información del Maestro",
+        desc: "Datos de contacto, cubículo, departamento y asignaciones.",
+        allowedLevels: [2, 4]
+      },
+      {
+        id: "MOD_ASSIGNMENT_MGMT",
+        title: "Creación y Asignación de Tareas",
+        desc: "Publicación de actividades, rúbricas y fechas de entrega para grupos.",
+        allowedLevels: [2]
+      },
+      {
+        id: "MOD_TAUGHT_SUBJECTS",
+        title: "Materias Impartidas",
+        desc: "Gestión de grupos, listas de asistencia y temarios a cargo.",
+        allowedLevels: [2]
+      }
+    ];
+
+    const modulesGrid = document.getElementById("modules-container");
+    const sysConsole  = document.getElementById("system-console");
+
+    function logToConsole(msg) {
+      const time = new Date().toLocaleTimeString();
+      sysConsole.textContent = `[${time}] ${msg}`;
+    }
+
+    function renderDashboard() {
+      if (!currentSession) return;
+
+      // Obtenemos los metadatos usando el nivel numérico (1, 2, 3, 4)
+      const meta = ROLE_META[currentSession.level] || { name: "Usuario", color: "#64748b" };
+
+      document.getElementById("display-name").textContent = currentSession.fullName;
+      document.getElementById("display-role").textContent = `Usuario: ${currentSession.user} | Perfil: ${meta.name}`;
+      
+      const badge = document.getElementById("display-badge");
+      badge.textContent = `LVL ${currentSession.level} - ${meta.name.toUpperCase()}`;
+      badge.style.background = meta.color;
+
+      modulesGrid.innerHTML = "";
+
+      // Filtramos los módulos comparando si el nivel del usuario está en el arreglo permitido
+      SYSTEM_MODULES.forEach(mod => {
+        const hasAccess = mod.allowedLevels.includes(currentSession.level);
+        if (!hasAccess) return;
+
+        const card = document.createElement("div");
+        card.className = "module-card";
+
+        card.innerHTML = `
+          <div>
+            <div class="module-header">
+              <strong>${mod.title}</strong>
+              <span class="perm-tag perm-rw">Disponible</span>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-top:10px;">${mod.desc}</p>
+          </div>
+          <div class="module-actions">
+            <button class="active-btn" onclick="handleModuleClick('${mod.id}')">
+              Acceder al Módulo
+            </button>
+          </div>
+        `;
+        modulesGrid.appendChild(card);
+      });
+    }
+
+    window.handleModuleClick = function(moduleId) {
+      logToConsole(`Abriendo el módulo [${moduleId}] con credenciales de Nivel ${currentSession.level}.`);
+    };
+
+    document.getElementById("logout-btn").addEventListener("click", logoutUser);
+
+    // Inicializar
+    if (currentSession) {
+      const meta = ROLE_META[currentSession.level] || { name: "Usuario" };
+      logToConsole(`Sesión iniciada como ${currentSession.user} (Nivel ${currentSession.level} - ${meta.name}).`);
+      renderDashboard();
+    }
+  </script>
+</body>
+</html>
