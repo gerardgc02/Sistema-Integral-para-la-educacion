@@ -5,8 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Sistema RBAC</title>
   <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Estilo auxiliar para posicionar el botón de tema sin estorbar el diseño */
+    .theme-corner {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+    }
+    .btn-theme {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+    .btn-theme:hover {
+      border-color: var(--accent);
+      background: var(--bg-card);
+    }
+  </style>
 </head>
 <body>
+
+  <!-- Botón de cambio de tema -->
+  <div class="theme-corner">
+    <button id="theme-toggle-btn" class="btn-theme">🌓 Tema</button>
+  </div>
 
   <div class="login-wrapper">
     <div class="card">
@@ -37,7 +64,21 @@
   <!-- Importamos el módulo de autenticación -->
   <script src="js/auth.js"></script>
   <script>
-    // Si ya hay una sesión activa, saltamos directo al dashboard
+    // 1. Gestión del Tema Oscuro / Claro
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    
+    // Al cargar, aplicamos inmediatamente el tema guardado
+    if (localStorage.getItem("rbac_theme") === "light") {
+      document.body.classList.add("light-theme");
+    }
+
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-theme");
+      const isLight = document.body.classList.contains("light-theme");
+      localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
+    });
+
+    // 2. Si ya hay una sesión activa, saltamos directo al dashboard
     if (getActiveSession()) {
       window.location.href = "dashboard.html";
     }
@@ -56,7 +97,7 @@
           <strong>${u.user}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">(pass: ${u.pass})</span>
           <div style="font-size:0.8rem; color:var(--text-muted);">${u.fullName}</div>
         </div>
-        <span class="badge" style="background:${meta.color}">LVL ${u.level} - ${meta.name}</span>
+        <span class="badge" style="background:${meta.color}; color:#fff;">LVL ${u.level} - ${meta.name}</span>
       `;
       chip.onclick = () => {
         document.getElementById("username").value = u.user;

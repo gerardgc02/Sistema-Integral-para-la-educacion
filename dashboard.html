@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel de Control - Sistema RBAC</title>
   <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Estilo auxiliar para el botón de tema en el dashboard */
+    .btn-theme {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-theme:hover {
+      border-color: var(--accent);
+      background: var(--bg-input);
+    }
+  </style>
 </head>
 <body>
 
@@ -19,6 +35,7 @@
       </div>
 
       <div class="controls">
+        <button id="theme-toggle-btn" class="btn-theme">🌓 Tema</button>
         <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
       </div>
     </header>
@@ -33,6 +50,20 @@
   <!-- Importamos tu módulo de autenticación intacto -->
   <script src="js/auth.js"></script>
   <script>
+    // 0. Gestión del Tema Oscuro / Claro
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    
+    // Al cargar, aplicamos inmediatamente el tema guardado
+    if (localStorage.getItem("rbac_theme") === "light") {
+      document.body.classList.add("light-theme");
+    }
+
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-theme");
+      const isLight = document.body.classList.contains("light-theme");
+      localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
+    });
+
     // 1. Verificación de seguridad
     const currentSession = requireAuth();
 
