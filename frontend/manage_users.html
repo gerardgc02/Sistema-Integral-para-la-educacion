@@ -109,12 +109,10 @@
     </header>
 
     <div class="mgmt-grid">
-      <!-- Columna Izquierda: Formulario Alta / Edición -->
+      <!-- Columna Izquierda: Formulario Alta -->
       <div class="panel-card">
         <h2 id="form-title" style="font-size: 1.1rem; margin-bottom: 16px;">Registrar Nuevo Usuario</h2>
         <form id="user-crud-form">
-          <input type="hidden" id="edit-index" value="-1">
-
           <div class="form-group">
             <label for="f-fullname">Nombre Completo</label>
             <input type="text" id="f-fullname" placeholder="Ej. Laura Gómez" required>
@@ -139,17 +137,18 @@
             </select>
           </div>
 
-          <button type="submit" class="btn-primary" id="submit-btn">Guardar Registro</button>
-          <button type="button" id="cancel-edit-btn" class="btn-sm" style="width: 100%; margin-top: 8px; display: none;">Cancelar Edición</button>
+          <button type="submit" class="btn-primary" id="submit-btn">Guardar Registro en SQLite</button>
+          <div id="form-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 8px;"></div>
         </form>
       </div>
 
-      <!-- Columna Derecha: Tabla de Registros Activos -->
+      <!-- Columna Derecha: Tabla de Registros Activos desde la BD -->
       <div class="panel-card" style="overflow-x: auto;">
         <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Base de Datos de Usuarios (Tabla `users`)</h2>
         <table>
           <thead>
             <tr>
+              <th>ID</th>
               <th>Nombre</th>
               <th>Usuario</th>
               <th>Contraseña</th>
@@ -158,14 +157,14 @@
             </tr>
           </thead>
           <tbody id="users-table-body">
-            <!-- Se llena dinámicamente -->
+            <!-- Se llena dinámicamente desde SQLite -->
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <script src="js/auth.js"></script>
+<script src="js/auth.js"></script>
   <script>
     // 0. Tema Oscuro / Claro
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
@@ -177,9 +176,9 @@
       localStorage.setItem("rbac_theme", document.body.classList.contains("light-theme") ? "light" : "dark");
     });
 
-    // 1. Guardia de Seguridad y Privilegios (Solo Nivel 3 o 4)
+    // 1. Guardia de Seguridad y Privilegios
     const currentSession = requireAuth();
-    if (currentSession.level < 3) {
+    if (!currentSession || currentSession.level < 3) {
       alert("Acceso denegado: Se requieren privilegios de Director.");
       window.location.href = "dashboard.html";
     }
@@ -188,116 +187,105 @@
     const meta = ROLE_META[currentSession.level] || { name: "Director" };
     document.getElementById("display-role").textContent = `Perfil: ${meta.name} (Nivel ${currentSession.level})`;
 
-    // 2. Lógica CRUD sobre la tabla de usuarios
     const form         = document.getElementById("user-crud-form");
-    const editIndexInp = document.getElementById("edit-index");
     const fullnameInp  = document.getElementById("f-fullname");
     const usernameInp  = document.getElementById("f-username");
     const passwordInp  = document.getElementById("f-password");
     const levelSel     = document.getElementById("f-level");
-    const formTitle    = document.getElementById("form-title");
-    const submitBtn    = document.getElementById("submit-btn");
-    const cancelBtn    = document.getElementById("cancel-edit-btn");
+    const formError    = document.getElementById("form-error");
     const tbody        = document.getElementById("users-table-body");
 
-    function renderUsersTable() {
-      const users = getUsersDB();
-      tbody.innerHTML = "";
+    // 2. Cargar usuarios con traza de depuración
+    async function loadUsersTable() {
+      try {
+        console.log("Iniciando petición a:", `${API_BASE_URL}/users`);
+        const response = await fetch(`${API_BASE_URL}/users`);
+        if (!response.ok) throw new Error("Error en la respuesta del servidor.");
+        
+        const users = await response.json();
+        console.log("Usuarios obtenidos para la tabla:", users);
+        
+        tbody.innerHTML = "";
 
-      users.forEach((u, index) => {
-        const roleInfo = ROLE_META[u.level] || { name: "Desconocido", color: "#64748b" };
-        const tr = document.createElement("tr");
+        users.forEach((u) => {
+          const roleInfo = ROLE_META[u.level] || { name: "Desconocido", color: "#64748b" };
+          const tr = document.createElement("tr");
 
-        tr.innerHTML = `
-          <td><strong>${u.fullName}</strong></td>
-          <td>${u.user}</td>
-          <td style="font-family: monospace; color: var(--text-muted);">${u.pass}</td>
-          <td><span class="badge" style="background:${roleInfo.color}; color:#fff;">${roleInfo.name}</span></td>
-          <td>
-            <div class="action-btns">
-              <button class="btn-sm" onclick="editUser(${index})">Editar</button>
-              <button class="btn-sm btn-del" onclick="deleteUser(${index})">Eliminar</button>
-            </div>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+          tr.innerHTML = `
+            <td>${u.id}</td>
+            <td><strong>${u.fullName}</strong></td>
+            <td>${u.user}</td>
+            <td style="font-family: monospace; color: var(--text-muted);">${u.pass}</td>
+            <td><span class="badge" style="background:${roleInfo.color}; color:#fff; padding: 2px 6px; border-radius: 4px;">${roleInfo.name}</span></td>
+            <td>
+              <div class="action-btns">
+                <button class="btn-sm btn-del" onclick="deleteUser(${u.id}, '${u.user}')">Eliminar</button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Error detallado en loadUsersTable:", err);
+        tbody.innerHTML = `<tr><td colspan="6" style="color: #ef4444; text-align: center;">Error al cargar la tabla: ${err.message}</td></tr>`;
+      }
     }
 
-    // Alta y Actualización (Create / Update)
-    form.addEventListener("submit", (e) => {
+    // 3. Registrar nuevo usuario
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const users = getUsersDB();
-      const idx = parseInt(editIndexInp.value, 10);
+      if (formError) formError.textContent = "";
 
-      const userRecord = {
-        fullName: fullnameInp.value.trim(),
-        user: usernameInp.value.trim(),
-        pass: passwordInp.value.trim(),
-        level: parseInt(levelSel.value, 10)
+      const payload = {
+        username: usernameInp.value.trim(),
+        password_hash: passwordInp.value.trim(),
+        full_name: fullnameInp.value.trim(),
+        role_id: parseInt(levelSel.value, 10)
       };
 
-      if (idx === -1) {
-        // Verificar que no exista el mismo nombre de usuario
-        if (users.some(u => u.user.toLowerCase() === userRecord.user.toLowerCase())) {
-          alert("Error: Ese nombre de usuario ya está registrado.");
-          return;
-        }
-        users.push(userRecord);
-      } else {
-        users[idx] = userRecord;
-      }
+      try {
+        const response = await fetch(`${API_BASE_URL}/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
 
-      saveUsersDB(users);
-      resetForm();
-      renderUsersTable();
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "No se pudo registrar.");
+
+        form.reset();
+        loadUsersTable();
+      } catch (err) {
+        if (formError) formError.textContent = err.message;
+      }
     });
 
-    // Cargar datos en formulario para editar
-    window.editUser = function(index) {
-      const users = getUsersDB();
-      const u = users[index];
-      editIndexInp.value = index;
-      fullnameInp.value = u.fullName;
-      usernameInp.value = u.user;
-      passwordInp.value = u.pass;
-      levelSel.value = u.level;
-
-      formTitle.textContent = `Editando a: ${u.user}`;
-      submitBtn.textContent = "Actualizar Registro";
-      cancelBtn.style.display = "block";
-    };
-
-    // Eliminar usuario (Delete)
-    window.deleteUser = function(index) {
-      const users = getUsersDB();
-      const target = users[index];
-
-      if (target.user === currentSession.user) {
-        alert("No puedes eliminar tu propia cuenta mientras tienes la sesión activa.");
+    // 4. Eliminar usuario
+    window.deleteUser = async function(userId, username) {
+      if (username === currentSession.user) {
+        alert("No puedes eliminar tu propia cuenta.");
         return;
       }
 
-      if (confirm(`¿Seguro que deseas eliminar a ${target.fullName} (${target.user})?`)) {
-        users.splice(index, 1);
-        saveUsersDB(users);
-        renderUsersTable();
+      if (!confirm(`¿Eliminar al usuario '${username}'?`)) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/${userId}`, { method: "DELETE" });
+        if (response.ok) {
+          loadUsersTable();
+        } else {
+          alert("No se pudo eliminar en el servidor.");
+        }
+      } catch (err) {
+        console.error("Error al eliminar:", err);
       }
     };
 
-    function resetForm() {
-      form.reset();
-      editIndexInp.value = "-1";
-      formTitle.textContent = "Registrar Nuevo Usuario";
-      submitBtn.textContent = "Guardar Registro";
-      cancelBtn.style.display = "none";
-    }
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) logoutBtn.addEventListener("click", logoutUser);
 
-    cancelBtn.addEventListener("click", resetForm);
-    document.getElementById("logout-btn").addEventListener("click", logoutUser);
-
-    // Arranque
-    renderUsersTable();
+    // Ejecutar al cargar la página
+    window.onload = loadUsersTable;
   </script>
 </body>
 </html>
