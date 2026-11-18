@@ -247,3 +247,79 @@ def delete_schedule(schedule_id: int):
     conn.commit()
     conn.close()
     return {"message": f"Asignación de horario con ID {schedule_id} eliminado."}
+
+
+# =========================================================================
+# MODELOS PYDANTIC PARA AUDITORÍA Y ASISTENCIA
+# =========================================================================
+class AuditLogCreate(BaseModel):
+    user_id: int
+    action: str
+    details: Optional[str] = None
+
+class AttendanceCreate(BaseModel):
+    schedule_id: int
+    student_id: int
+    date: str  # Formato "YYYY-MM-DD"
+    status: str  # "Presente", "Ausente", "Retardo"
+
+
+# =========================================================================
+# ENDPOINTS DE BITÁCORA DE AUDITORÍA Y ASISTENCIA
+# =========================================================================
+@app.get("/api/audit-logs")
+def get_audit_logs(limit: int = 50):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    query = """
+        SELECT a.id, u.username, u.full_name, a.action, a.details, a.timestamp
+        FROM audit_logs a
+        JOIN users u ON a.user_id = u.id
+        ORDER BY a.timestamp DESC
+        LIMIT ?
+    """
+    rows = cursor.execute(query, (limit,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+@app.post("/api/audit-logs")
+def create_audit_log(payload: AuditLogCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)",
+        (payload.user_id, payload.action, payload.details)
+    )
+    conn.commit()
+    new_id = cursor.lastrowid
+    conn.close()
+    return {"message": "Log registrado con éxito", "id": new_id}
+
+@app.get("/api/attendance/{schedule_id}")
+def get_attendance(schedule_id: int, date: Optional[str] = None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    if date:
+        query = "SELECT * FROM attendance WHERE schedule_id = ? AND date = ?"
+        rows = cursor.execute(query, (schedule_id, date)).fetchall()
+    else:
+        query = "SELECT * FROM attendance WHERE schedule_id = ?"
+        rows = cursor.execute(query, (schedule_id,)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+@app.post("/api/attendance")
+def save_attendance(payload: AttendanceCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Usamos INSERT OR REPLACE para actualizar si ya se había pasado lista ese día
+    cursor.execute(
+        """
+        INSERT OR REPLACE INTO attendance (schedule_id, student_id, date, status)
+        VALUES (?, ?, ?, ?)
+        """,
+        (payload.schedule_id, payload.student_id, payload.date, payload.status)
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Asistencia guardada correctamente."}
