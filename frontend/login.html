@@ -6,7 +6,6 @@
   <title>Login - Sistema RBAC</title>
   <link rel="stylesheet" href="css/styles.css">
   <style>
-    /* Estilo auxiliar para posicionar el botón de tema sin estorbar el diseño */
     .theme-corner {
       position: absolute;
       top: 20px;
@@ -43,14 +42,14 @@
       <form id="login-form">
         <div class="form-group">
           <label for="username">Usuario</label>
-          <input type="text" id="username" placeholder="Ej. operador1" required autocomplete="off">
+          <input type="text" id="username" placeholder="Ej. Alumno1" required autocomplete="off">
         </div>
         <div class="form-group">
           <label for="password">Contraseña</label>
           <input type="password" id="password" placeholder="••••" required>
         </div>
         <button type="submit" class="btn-primary">Iniciar Sesión</button>
-        <div id="login-error" class="error-msg"></div>
+        <div id="login-error" class="error-msg" style="color: #ef4444; margin-top: 10px; font-size: 0.85rem;"></div>
       </form>
     </div>
 
@@ -67,7 +66,6 @@
     // 1. Gestión del Tema Oscuro / Claro
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
     
-    // Al cargar, aplicamos inmediatamente el tema guardado
     if (localStorage.getItem("rbac_theme") === "light") {
       document.body.classList.add("light-theme");
     }
@@ -87,35 +85,55 @@
     const loginError     = document.getElementById("login-error");
     const quickUsersList = document.getElementById("quick-users-list");
 
-    // Renderizar tarjetas de prueba usando USERS_DB y ROLE_META desde auth.js
-    USERS_DB.forEach(u => {
-      const meta = ROLE_META[u.level];
-      const chip = document.createElement("div");
-      chip.className = "user-chip";
-      chip.innerHTML = `
-        <div>
-          <strong>${u.user}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">(pass: ${u.pass})</span>
-          <div style="font-size:0.8rem; color:var(--text-muted);">${u.fullName}</div>
-        </div>
-        <span class="badge" style="background:${meta.color}; color:#fff;">LVL ${u.level} - ${meta.name}</span>
-      `;
-      chip.onclick = () => {
-        document.getElementById("username").value = u.user;
-        document.getElementById("password").value = u.pass;
-        loginError.textContent = "";
-      };
-      quickUsersList.appendChild(chip);
-    });
+    // 3. Cargar usuarios de prueba dinámicamente desde FastAPI (SQLite)
+    async function loadQuickUsers() {
+      try {
+        const response = await fetch("http://127.0.0.1:8000/api/users");
+        if (!response.ok) return;
+        const users = await response.json();
 
-    loginForm.addEventListener("submit", (e) => {
+        quickUsersList.innerHTML = "";
+        users.forEach(u => {
+          const meta = ROLE_META[u.level] || { name: "Usuario", color: "#64748b" };
+          const chip = document.createElement("div");
+          chip.className = "user-chip";
+          chip.style.cssText = "padding: 8px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 8px; cursor: pointer; background: var(--bg-input); display: flex; justify-content: space-between; align-items: center;";
+          
+          chip.innerHTML = `
+            <div>
+              <strong>${u.user}</strong> <span style="color:var(--text-muted); font-size:0.8rem;">(pass: ${u.pass})</span>
+              <div style="font-size:0.8rem; color:var(--text-muted);">${u.fullName}</div>
+            </div>
+            <span class="badge" style="background:${meta.color}; color:#fff; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">LVL ${u.level} - ${meta.name}</span>
+          `;
+          
+          chip.onclick = () => {
+            document.getElementById("username").value = u.user;
+            document.getElementById("password").value = u.pass;
+            loginError.textContent = "";
+          };
+          quickUsersList.appendChild(chip);
+        });
+      } catch (err) {
+        quickUsersList.innerHTML = "<p style='color:var(--text-muted); font-size:0.85rem;'>Backend desconectado. Enciende FastAPI.</p>";
+      }
+    }
+
+    loadQuickUsers();
+
+    // 4. Manejo del formulario de inicio de sesión de forma asíncrona (AWAIT)
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
+      loginError.textContent = "";
+      
       const userVal = document.getElementById("username").value;
       const passVal = document.getElementById("password").value;
 
-      const session = loginUser(userVal, passVal);
+      // Usamos await porque loginUser realiza una petición fetch al backend
+      const session = await loginUser(userVal, passVal);
 
       if (!session) {
-        loginError.textContent = "Error: Credenciales inválidas.";
+        loginError.textContent = "Error: Credenciales inválidas o servidor inactivo.";
         return;
       }
 

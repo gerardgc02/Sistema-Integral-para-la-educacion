@@ -176,12 +176,12 @@ def get_schedules():
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
-        SELECT s.id, u.username as studentUser, sub.code as subjectCode, 
-               s.day_of_week as day, s.start_time as startTime, s.end_time as endTime, s.room
-        Posts schedules s
-        JOIN users u ON s.user_id = u.id
-        JOIN subjects sub ON s.subject_id = sub.id
-    """
+            SELECT s.id, u.username as studentUser, sub.code as subjectCode, 
+                s.day_of_week as day, s.start_time as startTime, s.end_time as endTime, s.room
+            FROM schedules s  -- <--- Asegúrate de que diga FROM en lugar de Posts
+            JOIN users u ON s.user_id = u.id
+            JOIN subjects sub ON s.subject_id = sub.id
+        """
     rows = cursor.execute(query).fetchall()
     conn.close()
     return [dict(row) for row in rows]

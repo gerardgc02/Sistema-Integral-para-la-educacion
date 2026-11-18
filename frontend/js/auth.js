@@ -1,9 +1,9 @@
 // =========================================================================
-// MÓDULO DE AUTENTICACIÓN Y GESTIÓN DE SESIÓN (auth.js)
+// MÓDULO DE AUTENTICACIÓN CONECTADO AL BACKEND FastAPI (auth.js)
 // =========================================================================
 
 const SESSION_KEY = "rbac_active_session";
-const USERS_STORAGE_KEY = "rbac_users_database";
+const API_BASE_URL = "http://127.0.0.1:8000/api";
 
 const ROLE_META = {
   1: { name: "Alumno",        color: "var(--lvl1)" },
@@ -12,69 +12,61 @@ const ROLE_META = {
   4: { name: "Administrador", color: "var(--lvl4)" }
 };
 
-// Usuarios por defecto (se cargan la primera vez)
-const DEFAULT_USERS = [
-  { user: "Alumno1",  pass: "1111", fullName: "Carlos Méndez",  level: 1 },
-  { user: "Maestro1", pass: "2222", fullName: "Ana Torres",     level: 2 },
-  { user: "super1",   pass: "3333", fullName: "Roberto Silva",  level: 3 },
-  { user: "admin",    pass: "4444", fullName: "Luis Guzmán",    level: 4 }
-];
+// Valida credenciales consumiendo la API REST de FastAPI de forma asíncrona
+async function loginUser(username, password) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        username: username.trim(),
+        password: password
+      })
+    });
 
-// Función para obtener la base de datos actual de usuarios
-function getUsersDB() {
-  const stored = localStorage.getItem(USERS_STORAGE_KEY);
-  if (!stored) {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_USERS));
-    return DEFAULT_USERS;
+    if (!response.ok) {
+      return null; // Credenciales inválidas
+    }
+
+    const userData = await response.json();
+
+    const sessionPayload = {
+      id: userData.id,
+      user: userData.user,
+      fullName: userData.fullName,
+      level: userData.level
+    };
+
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionPayload));
+    return sessionPayload;
+
+  } catch (error) {
+    console.error("Error de conexión con el backend:", error);
+    alert("No se pudo conectar con el servidor backend. Asegúrate de que FastAPI esté corriendo en http://127.0.0.1:8000");
+    return null;
   }
-  return JSON.parse(stored);
 }
 
-// Función para guardar cambios en la base de datos de usuarios (CRUD)
-function saveUsersDB(updatedUsers) {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-}
-
-// Inicializamos USERS_DB apuntando a la base persistente
-let USERS_DB = getUsersDB();
-
-// Valida credenciales y guarda la sesión en memoria del navegador
-function loginUser(username, password) {
-  USERS_DB = getUsersDB(); // Aseguramos leer la lista más reciente
-  const foundUser = USERS_DB.find(
-    u => u.user === username.trim() && u.pass === password
-  );
-
-  if (!foundUser) return null;
-
-  const sessionPayload = {
-    user: foundUser.user,
-    fullName: foundUser.fullName,
-    level: foundUser.level
-  };
-
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionPayload));
-  return sessionPayload;
-}
-
-// Recupera la sesión activa
+// Recupera la sesión activa desde sessionStorage
 function getActiveSession() {
   const raw = sessionStorage.getItem(SESSION_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
-// Guardia de ruta: si no hay sesión, redirige al login inmediatamente
+// Guardia de ruta: si no hay sesión, redirige al login
 function requireAuth() {
   const session = getActiveSession();
   if (!session) {
-    window.location.href = "index.html";
+    window.location.href = "login.html";
     return null;
   }
   return session;
 }
 
-// Destruye la sesión y regresa al login
+// Cierra sesión y redirige
 function logoutUser() {
   sessionStorage.removeItem(SESSION_KEY);
-  window.location.href = "index.html";
+  window.location.href = "login.html";
 }
