@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Materias Cursadas - Sistema RBAC</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .subjects-container {
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .semester-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .semester-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-status {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.8rem;
+    }
+    .status-pass { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #059669; }
+    .status-current { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid #2563eb; }
+
+    .topbar-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-back {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    .btn-back:hover { border-color: var(--accent); background: var(--bg-input); }
+  </style>
+</head>
+<body>
+
+  <div class="subjects-container">
+    <header class="topbar">
+      <div class="user-meta">
+        <div>
+          <strong id="display-name">Usuario</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="display-role">Historial Académico</div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <a href="dashboard.html" class="btn-back">← Volver al Menú</a>
+        <button id="theme-toggle-btn" class="btn-theme" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:8px 14px; border-radius:6px; cursor:pointer;">🌓 Tema</button>
+        <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
+      </div>
+    </header>
+
+    <div id="semesters-wrapper">
+      <!-- Se inyecta dinámicamente con JavaScript -->
+    </div>
+  </div>
+
+  <!-- Importamos autenticación -->
+  <script src="js/auth.js"></script>
+  <script>
+    // 0. Gestión de temas Oscuro / Claro
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    if (localStorage.getItem("rbac_theme") === "light") {
+      document.body.classList.add("light-theme");
+    }
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-theme");
+      const isLight = document.body.classList.contains("light-theme");
+      localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
+    });
+
+    // 1. Verificación de seguridad
+    const currentSession = requireAuth();
+
+    document.getElementById("display-name").textContent = currentSession.fullName;
+    const meta = ROLE_META[currentSession.level] || { name: "Usuario" };
+    document.getElementById("display-role").textContent = `Perfil: ${meta.name} (Nivel ${currentSession.level})`;
+
+    // 2. Base de datos simulada de materias agrupadas por semestre
+    const HISTORICAL_SUBJECTS = [
+      {
+        semestre: "Primer Semestre (2023-A)",
+        materias: [
+          { nombre: "Cálculo Diferencial e Integral", creditos: 5, calificacion: 92, estado: "Aprobada" },
+          { nombre: "Fundamentos de Programación (C)", creditos: 6, calificacion: 95, estado: "Aprobada" },
+          { nombre: "Química Básica", creditos: 4, calificacion: 88, estado: "Aprobada" },
+          { nombre: "Álgebra Lineal", creditos: 5, calificacion: 90, estado: "Aprobada" }
+        ]
+      },
+      {
+        semestre: "Segundo Semestre (2023-B)",
+        materias: [
+          { nombre: "Programación Orientada a Objetos", creditos: 6, calificacion: 91, estado: "Aprobada" },
+          { nombre: "Física General", creditos: 5, calificacion: 85, estado: "Aprobada" },
+          { nombre: "Matemáticas Discretas", creditos: 5, calificacion: 89, estado: "Aprobada" },
+          { nombre: "Electricidad y Magnetismo", creditos: 5, calificacion: 87, estado: "Aprobada" }
+        ]
+      },
+      {
+        semestre: "Quinto Semestre (2025-B)",
+        materias: [
+          { nombre: "Estructuras de Datos y Algoritmos", creditos: 6, calificacion: 94, estado: "Aprobada" },
+          { nombre: "Sistemas Digitales", creditos: 5, calificacion: 90, estado: "Aprobada" },
+          { nombre: "Señales y Sistemas", creditos: 5, calificacion: 86, estado: "Aprobada" },
+          { nombre: "Electrónica Analógica", creditos: 6, calificacion: 88, estado: "Aprobada" }
+        ]
+      },
+      {
+        semestre: "Sexto Semestre (2026-A - Actual)",
+        materias: [
+          { nombre: "Sistemas Embebidos", creditos: 6, calificacion: "-", estado: "Cursando" },
+          { nombre: "Arquitectura de Computadoras", creditos: 5, calificacion: "-", estado: "Cursando" },
+          { nombre: "Redes de Computadoras", creditos: 5, calificacion: "-", estado: "Cursando" },
+          { nombre: "Sistemas Operativos y Kernel", creditos: 6, calificacion: "-", estado: "Cursando" }
+        ]
+      }
+    ];
+
+    const wrapper = document.getElementById("semesters-wrapper");
+
+    function renderSubjects() {
+      wrapper.innerHTML = "";
+
+      HISTORICAL_SUBJECTS.forEach(block => {
+        const card = document.createElement("div");
+        card.className = "semester-card";
+
+        let rowsHTML = "";
+        block.materias.forEach(sub => {
+          const isAprobada = sub.estado === "Aprobada";
+          const badgeClass = isAprobada ? "status-pass" : "status-current";
+
+          rowsHTML += `
+            <tr>
+              <td><strong>${sub.nombre}</strong></td>
+              <td style="text-align: center;">${sub.creditos}</td>
+              <td style="text-align: center;"><strong>${sub.calificacion}</strong></td>
+              <td style="text-align: right;"><span class="badge-status ${badgeClass}">${sub.estado}</span></td>
+            </tr>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="semester-header">
+            <h2 style="font-size: 1.1rem; color: var(--text-main);">${block.semestre}</h2>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Asignatura</th>
+                <th style="text-align: center;">Créditos</th>
+                <th style="text-align: center;">Calificación</th>
+                <th style="text-align: right;">Estatus</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHTML}
+            </tbody>
+          </table>
+        `;
+
+        wrapper.appendChild(card);
+      });
+    }
+
+    document.getElementById("logout-btn").addEventListener("click", logoutUser);
+
+    // Inicializar
+    renderSubjects();
+  </script>
+</body>
+</html>

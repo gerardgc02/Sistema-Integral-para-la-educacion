@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Calificaciones - Sistema RBAC</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Estilos específicos para la tabla de calificaciones */
+    .grades-container {
+      max-width: 900px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .badge-promedio {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.85rem;
+    }
+    .aprobado { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #059669; }
+    .cursando { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #d97706; }
+
+    .topbar-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-back {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    .btn-back:hover { border-color: var(--accent); background: var(--bg-input); }
+  </style>
+</head>
+<body>
+
+  <div class="grades-container">
+    <header class="topbar">
+      <div class="user-meta">
+        <div>
+          <strong id="display-name">Usuario</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="display-role">Calificaciones</div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <a href="dashboard.html" class="btn-back">← Volver al Menú</a>
+        <button id="theme-toggle-btn" class="btn-theme" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:8px 14px; border-radius:6px; cursor:pointer;">🌓 Tema</button>
+        <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
+      </div>
+    </header>
+
+    <div class="table-card">
+      <h2 style="font-size: 1.2rem; margin-bottom: 6px;">Historial y Unidades Actuales</h2>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Consulta de calificaciones por materia, desglose por unidad y promedio final.</p>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Materia</th>
+            <th>Unidad 1</th>
+            <th>Unidad 2</th>
+            <th>Unidad 3</th>
+            <th>Unidad 4</th>
+            <th>Promedio Final</th>
+          </tr>
+        </thead>
+        <tbody id="grades-table-body">
+          <!-- Se inyecta dinámicamente con JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Importamos autenticación -->
+  <script src="js/auth.js"></script>
+  <script>
+    // 0. Gestión de temas Oscuro / Claro
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    if (localStorage.getItem("rbac_theme") === "light") {
+      document.body.classList.add("light-theme");
+    }
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-theme");
+      const isLight = document.body.classList.contains("light-theme");
+      localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
+    });
+
+    // 1. Verificación de seguridad
+    const currentSession = requireAuth();
+
+    document.getElementById("display-name").textContent = currentSession.fullName;
+    const meta = ROLE_META[currentSession.level] || { name: "Usuario" };
+    document.getElementById("display-role").textContent = `Perfil: ${meta.name} (Nivel ${currentSession.level})`;
+
+    // 2. Base de datos simulada de calificaciones por usuario/rol
+    // (En un sistema real, esto vendría de una API o base de datos estructurada)
+    const MOCK_GRADES = {
+      1: [ // Alumno1
+        { materia: "Sistemas Embebidos", u1: 90, u2: 85, u3: 92, u4: null }, // En curso (u4 pendiente)
+        { materia: "Arquitectura de Computadoras", u1: 80, u2: 88, u3: 85, u4: 90 }, // Completada
+        { materia: "Redes de Computadoras", u1: 95, u2: 90, u3: 92, u4: 94 }, // Completada
+        { materia: "Sistemas Operativos y Kernel", u1: 75, u2: 82, u3: null, u4: null } // En curso
+      ],
+      2: [ // Maestro1 (Materias que imparte o supervisa)
+        { materia: "Microcontroladores ARM (Grupo A)", u1: 88, u2: 91, u3: 85, u4: 89 },
+        { materia: "Sistemas Digitales Avanzados", u1: 92, u2: 95, u3: 90, u4: 93 }
+      ],
+      3: [ // Director / Supervisor (Vista global de academia)
+        { materia: "Ingeniería en Computación - Promedio General", u1: 89, u2: 87, u3: 88, u4: 90 }
+      ],
+      4: [ // Administrador (Acceso total al sistema)
+        { materia: "Auditoría del Sistema Académico", u1: 100, u2: 100, u3: 100, u4: 100 }
+      ]
+    };
+
+    const tbody = document.getElementById("grades-table-body");
+
+    function renderGrades() {
+      tbody.innerHTML = "";
+      
+      // Obtenemos las materias según el nivel del usuario actual (por defecto nivel 1 si no existe)
+      const userGrades = MOCK_GRADES[currentSession.level] || MOCK_GRADES[1];
+
+      userGrades.forEach(item => {
+        const units = [item.u1, item.u2, item.u3, item.u4];
+        
+        // Verificamos si todas las unidades están calificadas (ninguna es null/undefined)
+        const allCompleted = units.every(u => u !== null && u !== undefined);
+
+        let promedioHTML = "";
+        if (allCompleted) {
+          const suma = units.reduce((acc, val) => acc + val, 0);
+          const promedio = (suma / units.length).toFixed(1);
+          promedioHTML = `<span class="badge-promedio aprobado">${promedio} (Aprobada)</span>`;
+        } else {
+          promedioHTML = `<span class="badge-promedio cursando">En Curso / Pendiente</span>`;
+        }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${item.materia}</strong></td>
+          <td>${item.u1 !== null ? item.u1 : '<span style="color:var(--text-muted)">-</span>'}</td>
+          <td>${item.u2 !== null ? item.u2 : '<span style="color:var(--text-muted)">-</span>'}</td>
+          <td>${item.u3 !== null ? item.u3 : '<span style="color:var(--text-muted)">-</span>'}</td>
+          <td>${item.u4 !== null ? item.u4 : '<span style="color:var(--text-muted)">-</span>'}</td>
+          <td>${promedioHTML}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("logout-btn").addEventListener("click", logoutUser);
+
+    // Inicializar renderizado
+    renderGrades();
+  </script>
+</body>
+</html>

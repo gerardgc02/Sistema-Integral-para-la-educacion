@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Horarios - Sistema RBAC</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .schedule-container {
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    th {
+      background: var(--bg-input);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      text-align: center;
+    }
+
+    td:first-child {
+      font-weight: bold;
+      color: var(--accent);
+      text-align: center;
+      background: var(--bg-input);
+      width: 120px;
+    }
+
+    .class-cell {
+      background: rgba(59, 130, 246, 0.08);
+      border-radius: 6px;
+      padding: 8px;
+    }
+
+    .room-tag {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: block;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-back {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    .btn-back:hover { border-color: var(--accent); background: var(--bg-input); }
+  </style>
+</head>
+<body>
+
+  <div class="schedule-container">
+    <header class="topbar">
+      <div class="user-meta">
+        <div>
+          <strong id="display-name">Usuario</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="display-role">Horario Escolar</div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <a href="dashboard.html" class="btn-back">← Volver al Menú</a>
+        <button id="theme-toggle-btn" class="btn-theme" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:8px 14px; border-radius:6px; cursor:pointer;">🌓 Tema</button>
+        <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
+      </div>
+    </header>
+
+    <div class="table-card">
+      <h2 style="font-size: 1.2rem; margin-bottom: 6px;">Calendario de Clases Semanal</h2>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Distribución de bloques horarios y asignación de aulas para el periodo actual.</p>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Horario</th>
+            <th>Lunes</th>
+            <th>Martes</th>
+            <th>Miércoles</th>
+            <th>Jueves</th>
+            <th>Viernes</th>
+          </tr>
+        </thead>
+        <tbody id="schedule-table-body">
+          <!-- Se inyecta dinámicamente con JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Importamos autenticación -->
+  <script src="js/auth.js"></script>
+  <script>
+    // 0. Gestión de temas Oscuro / Claro
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    if (localStorage.getItem("rbac_theme") === "light") {
+      document.body.classList.add("light-theme");
+    }
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-theme");
+      const isLight = document.body.classList.contains("light-theme");
+      localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
+    });
+
+    // 1. Verificación de seguridad
+    const currentSession = requireAuth();
+
+    document.getElementById("display-name").textContent = currentSession.fullName;
+    const meta = ROLE_META[currentSession.level] || { name: "Usuario" };
+    document.getElementById("display-role").textContent = `Perfil: ${meta.name} (Nivel ${currentSession.level})`;
+
+    // 2. Base de datos simulada de horarios por nivel
+    const MOCK_SCHEDULES = {
+      1: [ // Alumno1 (Horario de clases)
+        { 
+          hora: "07:00 - 09:00", 
+          lunes: "Sistemas Embebidos<span class='room-tag'>Lab. Electrónica 3</span>", 
+          martes: "Arquitectura de Computadoras<span class='room-tag'>Aula 204</span>", 
+          miercoles: "Sistemas Embebidos<span class='room-tag'>Lab. Electrónica 3</span>", 
+          jueves: "Arquitectura de Computadoras<span class='room-tag'>Aula 204</span>", 
+          viernes: "Redes de Computadoras<span class='room-tag'>Lab. Redes 1</span>" 
+        },
+        { 
+          hora: "09:00 - 11:00", 
+          lunes: "Sistemas Operativos y Kernel<span class='room-tag'>Lab. Sistemas 2</span>", 
+          martes: "Redes de Computadoras<span class='room-tag'>Lab. Redes 1</span>", 
+          miercoles: "Sistemas Operativos y Kernel<span class='room-tag'>Lab. Sistemas 2</span>", 
+          jueves: "Matemáticas Discretas<span class='room-tag'>Aula 105</span>", 
+          viernes: "Sistemas Operativos y Kernel<span class='room-tag'>Lab. Sistemas 2</span>" 
+        },
+        { 
+          hora: "11:00 - 12:00", 
+          lunes: "Asesoría / Tutoría<span class='room-tag'>Cubículo 12</span>", 
+          martes: "Estudio Libre<span class='room-tag'>Biblioteca</span>", 
+          miercoles: "Asesoría / Tutoría<span class='room-tag'>Cubículo 12</span>", 
+          jueves: "Estudio Libre<span class='room-tag'>Biblioteca</span>", 
+          viernes: "Revisión de Proyectos<span class='room-tag'>Lab. Central</span>" 
+        }
+      ],
+      2: [ // Maestro1 (Horario de cátedra y asesorías)
+        { 
+          hora: "08:00 - 10:00", 
+          lunes: "Microcontroladores ARM (Grupo A)<span class='room-tag'>Lab. Embedded</span>", 
+          martes: "Asesorías Docentes<span class='room-tag'>Cubículo 4B</span>", 
+          miercoles: "Microcontroladores ARM (Grupo A)<span class='room-tag'>Lab. Embedded</span>", 
+          jueves: "Junta de Academia<span class='room-tag'>Sala Juntas</span>", 
+          viernes: "Sistemas Digitales Avanzados<span class='room-tag'>Lab. Electrónica</span>" 
+        },
+        { 
+          hora: "10:00 - 12:00", 
+          lunes: "Sistemas Digitales Avanzados<span class='room-tag'>Lab. Electrónica</span>", 
+          martes: "Microcontroladores ARM (Grupo A)<span class='room-tag'>Lab. Embedded</span>", 
+          miercoles: "Sistemas Digitales Avanzados<span class='room-tag'>Lab. Electrónica</span>", 
+          jueves: "Asesorías Docentes<span class='room-tag'>Cubículo 4B</span>", 
+          viernes: "Investigación y Desarrollo<span class='room-tag'>Lab. Central</span>" 
+        }
+      ]
+    };
+
+    const tbody = document.getElementById("schedule-table-body");
+
+    function renderSchedule() {
+      tbody.innerHTML = "";
+      
+      // Obtenemos el horario según el nivel del usuario (por defecto nivel 1 si no está mapeado)
+      const userSchedule = MOCK_SCHEDULES[currentSession.level] || MOCK_SCHEDULES[1];
+
+      userSchedule.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row.hora}</td>
+          <td><div class="class-cell">${row.lunes}</div></td>
+          <td><div class="class-cell">${row.martes}</div></td>
+          <td><div class="class-cell">${row.miercoles}</div></td>
+          <td><div class="class-cell">${row.jueves}</div></td>
+          <td><div class="class-cell">${row.viernes}</div></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("logout-btn").addEventListener("click", logoutUser);
+
+    // Inicializar
+    renderSchedule();
+  </script>
+</body>
+</html>
