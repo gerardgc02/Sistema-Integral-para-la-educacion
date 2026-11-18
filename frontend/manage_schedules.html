@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Horarios - Dirección</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .mgmt-container {
+      max-width: 1050px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .mgmt-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .mgmt-grid { grid-template-columns: 1fr; }
+    }
+
+    .panel-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    select {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 0.95rem;
+    }
+    select:focus { outline: none; border-color: var(--accent); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.75rem;
+    }
+
+    .time-badge {
+      font-family: monospace;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-main);
+      cursor: pointer;
+    }
+    .btn-sm:hover { border-color: var(--accent); }
+    .btn-del:hover { border-color: #ef4444; color: #ef4444; }
+
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-back {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .btn-back:hover { border-color: var(--accent); background: var(--bg-input); }
+  </style>
+</head>
+<body>
+
+  <div class="mgmt-container">
+    <header class="topbar">
+      <div class="user-meta">
+        <div>
+          <strong id="display-name">Usuario</strong>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="display-role">Control de Horarios y Aulas</div>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <a href="dashboard.html" class="btn-back">← Volver al Menú</a>
+        <button id="theme-toggle-btn" class="btn-theme" style="background:transparent; border:1px solid var(--border); color:var(--text-main); padding:8px 14px; border-radius:6px; cursor:pointer;">🌓 Tema</button>
+        <button id="logout-btn" class="btn-logout">Cerrar Sesión</button>
+      </div>
+    </header>
+
+    <div class="mgmt-grid">
+      <!-- Columna Izquierda: Formulario Alta / Edición -->
+      <div class="panel-card">
+        <h2 id="form-title" style="font-size: 1.1rem; margin-bottom: 16px;">Asignar Nuevo Horario</h2>
+        <form id="schedule-crud-form">
+          <input type="hidden" id="edit-index" value="-1">
+
+          <div class="form-group">
+            <label for="f-student">Estudiante (Nivel 1)</label>
+            <select id="f-student" required>
+              <!-- Se llena dinámicamente con alumnos -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="f-subject">Asignatura</label>
+            <select id="f-subject" required>
+              <!-- Se llena dinámicamente con materias -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="f-day">Día de la Semana</label>
+            <select id="f-day" required>
+              <option value="Lunes">Lunes</option>
+              <option value="Martes">Martes</option>
+              <option value="Miércoles">Miércoles</option>
+              <option value="Jueves">Jueves</option>
+              <option value="Viernes">Viernes</option>
+            </select>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label for="f-start">Hora Inicio</label>
+              <input type="time" id="f-start" value="07:00" required>
+            </div>
+            <div class="form-group">
+              <label for="f-end">Hora Fin</label>
+              <input type="time" id="f-end" value="09:00" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="f-room">Aula / Laboratorio</label>
+            <input type="text" id="f-room" placeholder="Ej. Lab. Electrónica 3" required autocomplete="off">
+          </div>
+
+          <button type="submit" class="btn-primary" id="submit-btn">Guardar Horario</button>
+          <button type="button" id="cancel-edit-btn" class="btn-sm" style="width: 100%; margin-top: 8px; display: none;">Cancelar Edición</button>
+        </form>
+      </div>
+
+      <!-- Columna Derecha: Tabla de Horarios Activos -->
+      <div class="panel-card" style="overflow-x: auto;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Horarios Registrados (Tabla `schedules`)</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Alumno</th>
+              <th>Materia</th>
+              <th>Día</th>
+              <th>Horario</th>
+              <th>Aula</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="schedules-table-body">
+            <!-- Se llena dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script>
+    // 0. Aplicar tema guardado inmediatamente al cargar la página
+    if (localStorage.getItem("rbac_theme") === "light") {
+      document.body.classList.add("light-theme");
+    }
+
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
+    if (themeToggleBtn) {
+      themeToggleBtn.addEventListener("click", () => {
+        document.body.classList.toggle("light-theme");
+        const isLight = document.body.classList.contains("light-theme");
+        localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
+      });
+    }
+
+    // 1. Guardia de Seguridad y Privilegios (Solo Nivel 3 o 4)
+    const currentSession = requireAuth();
+    if (currentSession.level < 3) {
+      alert("Acceso denegado: Se requieren privilegios de Director.");
+      window.location.href = "dashboard.html";
+    }
+
+    document.getElementById("display-name").textContent = currentSession.fullName;
+    const meta = ROLE_META[currentSession.level] || { name: "Director" };
+    document.getElementById("display-role").textContent = `Perfil: ${meta.name} (Nivel ${currentSession.level})`;
+
+    // 2. Persistencia local para la tabla `schedules`
+    const SCHEDULES_STORAGE_KEY = "rbac_db_schedules";
+    const USERS_STORAGE_KEY = "rbac_users_database";
+    const SUBJECTS_STORAGE_KEY = "rbac_db_subjects";
+
+    const DEFAULT_SCHEDULES = [
+      { studentUser: "Alumno1", subjectCode: "EMB-301", day: "Lunes", startTime: "07:00", endTime: "09:00", room: "Lab. Electrónica 3" },
+      { studentUser: "Alumno1", subjectCode: "ARQ-302", day: "Martes", startTime: "09:00", endTime: "11:00", room: "Aula 204" },
+      { studentUser: "Alumno1", subjectCode: "RED-201", day: "Miércoles", startTime: "11:00", endTime: "13:00", room: "Lab. Redes 1" },
+      { studentUser: "Alumno1", subjectCode: "OS-401",  day: "Jueves", startTime: "07:00", endTime: "09:00", room: "Lab. Sistemas 2" }
+    ];
+
+    function getSchedulesDB() {
+      const stored = localStorage.getItem(SCHEDULES_STORAGE_KEY);
+      if (!stored) {
+        localStorage.setItem(SCHEDULES_STORAGE_KEY, JSON.stringify(DEFAULT_SCHEDULES));
+        return DEFAULT_SCHEDULES;
+      }
+      return JSON.parse(stored);
+    }
+
+    function saveSchedulesDB(updatedSchedules) {
+      localStorage.setItem(SCHEDULES_STORAGE_KEY, JSON.stringify(updatedSchedules));
+    }
+
+    // Poblar selectores de Alumnos y Materias en el formulario
+    function populateSelectors() {
+      const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
+      const students = users.filter(u => u.level === 1);
+      const studentSel = document.getElementById("f-student");
+      studentSel.innerHTML = "";
+      
+      students.forEach(s => {
+        const opt = document.createElement("option");
+        opt.value = s.user;
+        opt.textContent = `${s.fullName} (${s.user})`;
+        studentSel.appendChild(opt);
+      });
+
+      const subjects = JSON.parse(localStorage.getItem(SUBJECTS_STORAGE_KEY) || "[]");
+      const subjectSel = document.getElementById("f-subject");
+      subjectSel.innerHTML = "";
+
+      subjects.forEach(sub => {
+        const opt = document.createElement("option");
+        opt.value = sub.code;
+        opt.textContent = `${sub.name} [${sub.code}]`;
+        subjectSel.appendChild(opt);
+      });
+    }
+
+    // 3. Lógica CRUD sobre la tabla de horarios
+    const form         = document.getElementById("schedule-crud-form");
+    const editIndexInp = document.getElementById("edit-index");
+    const studentSel   = document.getElementById("f-student");
+    const subjectSel   = document.getElementById("f-subject");
+    const daySel       = document.getElementById("f-day");
+    const startInp     = document.getElementById("f-start");
+    const endInp       = document.getElementById("f-end");
+    const roomInp      = document.getElementById("f-room");
+    const formTitle    = document.getElementById("form-title");
+    const submitBtn    = document.getElementById("submit-btn");
+    const cancelBtn    = document.getElementById("cancel-edit-btn");
+    const tbody        = document.getElementById("schedules-table-body");
+
+    function renderSchedulesTable() {
+      const schedules = getSchedulesDB();
+      const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
+      const subjects = JSON.parse(localStorage.getItem(SUBJECTS_STORAGE_KEY) || "[]");
+      tbody.innerHTML = "";
+
+      schedules.forEach((sch, index) => {
+        const uObj = users.find(u => u.user === sch.studentUser) || { fullName: sch.studentUser };
+        const sObj = subjects.find(s => s.code === sch.subjectCode) || { name: sch.subjectCode };
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td><strong>${uObj.fullName}</strong></td>
+          <td>${sObj.name} <span style="color:var(--text-muted); font-size:0.75rem;">(${sch.subjectCode})</span></td>
+          <td>${sch.day}</td>
+          <td><span class="time-badge">${sch.startTime} - ${sch.endTime}</span></td>
+          <td>${sch.room}</td>
+          <td>
+            <div class="action-btns">
+              <button class="btn-sm" onclick="editSchedule(${index})">Editar</button>
+              <button class="btn-sm btn-del" onclick="deleteSchedule(${index})">Eliminar</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const schedules = getSchedulesDB();
+      const idx = parseInt(editIndexInp.value, 10);
+
+      const scheduleRecord = {
+        studentUser: studentSel.value,
+        subjectCode: subjectSel.value,
+        day: daySel.value,
+        startTime: startInp.value,
+        endTime: endInp.value,
+        room: roomInp.value.trim()
+      };
+
+      if (idx === -1) {
+        schedules.push(scheduleRecord);
+      } else {
+        schedules[idx] = scheduleRecord;
+      }
+
+      saveSchedulesDB(schedules);
+      resetForm();
+      renderSchedulesTable();
+    });
+
+    window.editSchedule = function(index) {
+      const schedules = getSchedulesDB();
+      const s = schedules[index];
+      editIndexInp.value = index;
+      studentSel.value = s.studentUser;
+      subjectSel.value = s.subjectCode;
+      daySel.value = s.day;
+      startInp.value = s.startTime;
+      endInp.value = s.endTime;
+      roomInp.value = s.room;
+
+      formTitle.textContent = "Editando Bloque de Horario";
+      submitBtn.textContent = "Actualizar Horario";
+      cancelBtn.style.display = "block";
+    };
+
+    window.deleteSchedule = function(index) {
+      const schedules = getSchedulesDB();
+      if (confirm("¿Seguro que deseas eliminar este bloque de horario?")) {
+        schedules.splice(index, 1);
+        saveSchedulesDB(schedules);
+        renderSchedulesTable();
+      }
+    };
+
+    function resetForm() {
+      form.reset();
+      editIndexInp.value = "-1";
+      formTitle.textContent = "Asignar Nuevo Horario";
+      submitBtn.textContent = "Guardar Horario";
+      cancelBtn.style.display = "none";
+    }
+
+    cancelBtn.addEventListener("click", resetForm);
+    document.getElementById("logout-btn").addEventListener("click", logoutUser);
+
+    // Arranque
+    populateSelectors();
+    renderSchedulesTable();
+  </script>
+</body>
+</html>
