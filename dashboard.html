@@ -127,7 +127,26 @@
         title: "Materias Impartidas",
         desc: "Gestión de grupos, listas de asistencia y temarios a cargo.",
         allowedLevels: [2]
-      }
+      },
+      // Módulos exclusivos de Dirección / Administración (Nivel 3 y 4)
+      {
+        id: "MOD_USER_MGMT",
+        title: "Gestión de Alumnos y Maestros",
+        desc: "Alta, edición y baja de cuentas de estudiantes y personal docente.",
+        allowedLevels: [3, 4]
+      },
+      {
+        id: "MOD_SUBJECT_MGMT",
+        title: "Catálogo de Materias",
+        desc: "Alta, edición y baja de asignaturas, claves, créditos y semestre.",
+        allowedLevels: [3, 4]
+      },
+      {
+        id: "MOD_SCHEDULE_MGMT",
+        title: "Gestión de Horarios y Aulas",
+        desc: "Asignación de días, horas, salones y laboratorios para los grupos.",
+        allowedLevels: [3, 4]
+      },
     ];
 
     const modulesGrid = document.getElementById("modules-container");
@@ -191,6 +210,13 @@ window.handleModuleClick = function(moduleId) {
         window.location.href = "student_info.html";
       } else if (moduleId === "MOD_ENROLLED_SUBJECTS") {
         window.location.href = "subjects.html";
+      }
+      else if (moduleId === "MOD_USER_MGMT") {
+        window.location.href = "manage_users.html";
+      } else if (moduleId === "MOD_SUBJECT_MGMT") {
+        window.location.href = "manage_subjects.html";
+      } else if (moduleId === "MOD_SCHEDULE_MGMT") {
+        window.location.href = "manage_schedules.html";
       }
     };
 
