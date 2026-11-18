@@ -67,6 +67,15 @@ class ScheduleCreate(BaseModel):
     end_time: str
     room: str
 
+class ScheduleUpdate(BaseModel):
+    user_id: int
+    subject_id: int
+    semester_period: str
+    day_of_week: str
+    start_time: str
+    end_time: str
+    room: str
+
 
 # =========================================================================
 # ENDPOINTS DE AUTENTICACIÓN
@@ -176,12 +185,65 @@ def get_schedules():
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
-            SELECT s.id, u.username as studentUser, sub.code as subjectCode, 
-                s.day_of_week as day, s.start_time as startTime, s.end_time as endTime, s.room
-            FROM schedules s  -- <--- Asegúrate de que diga FROM en lugar de Posts
-            JOIN users u ON s.user_id = u.id
-            JOIN subjects sub ON s.subject_id = sub.id
-        """
+        SELECT s.id, s.user_id, s.subject_id, s.semester_period, 
+               u.username as studentUser, u.full_name as teacherName, 
+               sub.code as subjectCode, sub.name as subjectName, sub.semester_level as semester,
+               s.day_of_week as day, s.start_time as startTime, s.end_time as endTime, s.room
+        FROM schedules s
+        JOIN users u ON s.user_id = u.id
+        JOIN subjects sub ON s.subject_id = sub.id
+    """
     rows = cursor.execute(query).fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+@app.post("/api/schedules")
+def create_schedule(payload: ScheduleCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            INSERT INTO schedules (user_id, subject_id, semester_period, day_of_week, start_time, end_time, room)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (payload.user_id, payload.subject_id, payload.semester_period, payload.day_of_week, payload.start_time, payload.end_time, payload.room)
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Error de integridad en base de datos: {e}")
+    conn.close()
+    return {"message": "Horario y clase asignados con éxito", "id": new_id}
+
+@app.put("/api/schedules/{schedule_id}")
+def update_schedule(schedule_id: int, payload: ScheduleUpdate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE schedules 
+            SET user_id = ?, subject_id = ?, semester_period = ?, day_of_week = ?, start_time = ?, end_time = ?, room = ?
+            WHERE id = ?
+            """,
+            (payload.user_id, payload.subject_id, payload.semester_period, payload.day_of_week, payload.start_time, payload.end_time, payload.room, schedule_id)
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Horario no encontrado.")
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Error de integridad: {e}")
+    conn.close()
+    return {"message": f"Horario con ID {schedule_id} actualizado con éxito."}
+
+@app.delete("/api/schedules/{schedule_id}")
+def delete_schedule(schedule_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM schedules WHERE id = ?", (schedule_id,))
+    conn.commit()
+    conn.close()
+    return {"message": f"Asignación de horario con ID {schedule_id} eliminado."}

@@ -7,19 +7,19 @@
   <link rel="stylesheet" href="css/styles.css">
   <style>
     .mgmt-container {
-      max-width: 1050px;
+      max-width: 1250px;
       width: 100%;
       margin: 0 auto;
     }
 
     .mgmt-grid {
       display: grid;
-      grid-template-columns: 1fr 2fr;
+      grid-template-columns: 1fr 2.4fr;
       gap: 20px;
       margin-top: 20px;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
       .mgmt-grid { grid-template-columns: 1fr; }
     }
 
@@ -31,16 +31,28 @@
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
     }
 
-    select {
+    input, select {
       width: 100%;
       padding: 10px 14px;
       background: var(--bg-input);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text-main);
-      font-size: 0.95rem;
+      font-size: 0.90rem;
+      margin-top: 4px;
     }
-    select:focus { outline: none; border-color: var(--accent); }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    .filter-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      background: var(--bg-input);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
 
     table {
       width: 100%;
@@ -60,33 +72,7 @@
       font-size: 0.75rem;
     }
 
-    .time-badge {
-      font-family: monospace;
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-    }
-
-    .action-btns {
-      display: flex;
-      gap: 6px;
-    }
-
-    .btn-sm {
-      padding: 5px 10px;
-      font-size: 0.75rem;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-      background: var(--bg-input);
-      color: var(--text-main);
-      cursor: pointer;
-    }
-    .btn-sm:hover { border-color: var(--accent); }
-    .btn-del:hover { border-color: #ef4444; color: #ef4444; }
-
-    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+    .topbar-actions { display: flex; gap: 10px; }
     .btn-back {
       background: transparent;
       border: 1px solid var(--border);
@@ -97,6 +83,42 @@
       font-size: 0.9rem;
     }
     .btn-back:hover { border-color: var(--accent); background: var(--bg-input); }
+
+    .action-btns { display: flex; gap: 6px; }
+    .btn-edit {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid #3b82f6;
+      color: #3b82f6;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-edit:hover { background: #3b82f6; color: white; }
+
+    .btn-delete {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid #ef4444;
+      color: #ef4444;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-delete:hover { background: #ef4444; color: white; }
+
+    .btn-cancel-edit {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      margin-top: 6px;
+      width: 100%;
+    }
+    .btn-cancel-edit:hover { border-color: var(--text-main); color: var(--text-main); }
   </style>
 </head>
 <body>
@@ -106,7 +128,7 @@
       <div class="user-meta">
         <div>
           <strong id="display-name">Usuario</strong>
-          <div style="font-size: 0.8rem; color: var(--text-muted);" id="display-role">Control de Horarios y Aulas</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);" id="display-role">Control Académico</div>
         </div>
       </div>
 
@@ -118,29 +140,85 @@
     </header>
 
     <div class="mgmt-grid">
-      <!-- Columna Izquierda: Formulario Alta / Edición -->
+      <!-- Columna Izquierda: Formulario (Crear / Editar) -->
       <div class="panel-card">
-        <h2 id="form-title" style="font-size: 1.1rem; margin-bottom: 16px;">Asignar Nuevo Horario</h2>
-        <form id="schedule-crud-form">
-          <input type="hidden" id="edit-index" value="-1">
-
-          <div class="form-group">
-            <label for="f-student">Estudiante (Nivel 1)</label>
-            <select id="f-student" required>
-              <!-- Se llena dinámicamente con alumnos -->
+        <h2 id="form-title" style="font-size: 1.1rem; margin-bottom: 16px;">Asignar Horario / Clase</h2>
+        <form id="schedule-form">
+          
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="f-teacher">Profesor a Cargo</label>
+            <select id="f-teacher" required>
+              <option value="">Seleccione un profesor...</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="f-subject">Asignatura</label>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="f-subject">Materia (Catálogo)</label>
             <select id="f-subject" required>
-              <!-- Se llena dinámicamente con materias -->
+              <option value="">Seleccione una materia...</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="f-day">Día de la Semana</label>
-            <select id="f-day" required>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="f-period">Periodo Semestral</label>
+            <input type="text" id="f-period" value="2026-1" required>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 14px;" id="days-container-wrapper">
+            <label id="days-label">Días de la Semana (Selecciona uno o varios)</label>
+            <div id="days-checkboxes" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; background: var(--bg-input); padding: 10px; border: 1px solid var(--border); border-radius: 6px;">
+              <label style="font-size: 0.8rem; cursor: pointer;"><input type="checkbox" name="day" value="Lunes"> Lunes</label>
+              <label style="font-size: 0.8rem; cursor: pointer;"><input type="checkbox" name="day" value="Martes"> Martes</label>
+              <label style="font-size: 0.8rem; cursor: pointer;"><input type="checkbox" name="day" value="Miércoles"> Miércoles</label>
+              <label style="font-size: 0.8rem; cursor: pointer;"><input type="checkbox" name="day" value="Jueves"> Jueves</label>
+              <label style="font-size: 0.8rem; cursor: pointer;"><input type="checkbox" name="day" value="Viernes"> Viernes</label>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+            <div class="form-group">
+              <label for="f-start">Hora Inicio</label>
+              <input type="time" id="f-start" required>
+            </div>
+            <div class="form-group">
+              <label for="f-end">Hora Fin</label>
+              <input type="time" id="f-end" required>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label for="f-room">Aula / Laboratorio</label>
+            <input type="text" id="f-room" placeholder="Ej. Lab-3 o Salón 204" required>
+          </div>
+
+          <button type="submit" id="submit-btn" class="btn-primary" style="width: 100%;">Asignar Clase</button>
+          <button type="button" id="cancel-edit-btn" class="btn-cancel-edit" style="display: none;">Cancelar Edición</button>
+          <div id="form-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 8px;"></div>
+        </form>
+      </div>
+
+      <!-- Columna Derecha: Tabla y Filtros -->
+      <div class="panel-card" style="overflow-x: auto;">
+        <h2 style="font-size: 1.1rem; margin-bottom: 12px;">Horarios y Asignaciones Vigentes</h2>
+        
+        <!-- Barra de Filtros -->
+        <div class="filter-bar">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Filtrar Semestre</label>
+            <select id="filter-semester">
+              <option value="">Todos los semestres</option>
+              <option value="1">Semestre 1</option>
+              <option value="2">Semestre 2</option>
+              <option value="3">Semestre 3</option>
+              <option value="4">Semestre 4</option>
+              <option value="5">Semestre 5</option>
+              <option value="6">Semestre 6</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Filtrar Día</label>
+            <select id="filter-day">
+              <option value="">Todos los días</option>
               <option value="Lunes">Lunes</option>
               <option value="Martes">Martes</option>
               <option value="Miércoles">Miércoles</option>
@@ -148,38 +226,18 @@
               <option value="Viernes">Viernes</option>
             </select>
           </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div class="form-group">
-              <label for="f-start">Hora Inicio</label>
-              <input type="time" id="f-start" value="07:00" required>
-            </div>
-            <div class="form-group">
-              <label for="f-end">Hora Fin</label>
-              <input type="time" id="f-end" value="09:00" required>
-            </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Buscar Texto</label>
+            <input type="text" id="filter-search" placeholder="Materia, profe, aula...">
           </div>
+        </div>
 
-          <div class="form-group">
-            <label for="f-room">Aula / Laboratorio</label>
-            <input type="text" id="f-room" placeholder="Ej. Lab. Electrónica 3" required autocomplete="off">
-          </div>
-
-          <button type="submit" class="btn-primary" id="submit-btn">Guardar Horario</button>
-          <button type="button" id="cancel-edit-btn" class="btn-sm" style="width: 100%; margin-top: 8px; display: none;">Cancelar Edición</button>
-        </form>
-      </div>
-
-      <!-- Columna Derecha: Tabla de Horarios Activos -->
-      <div class="panel-card" style="overflow-x: auto;">
-        <h2 style="font-size: 1.1rem; margin-bottom: 16px;">Horarios Registrados (Tabla `schedules`)</h2>
         <table>
           <thead>
             <tr>
-              <th>Alumno</th>
+              <th>Día / Hora</th>
               <th>Materia</th>
-              <th>Día</th>
-              <th>Horario</th>
+              <th>Profesor</th>
               <th>Aula</th>
               <th>Acciones</th>
             </tr>
@@ -194,23 +252,17 @@
 
   <script src="js/auth.js"></script>
   <script>
-    // 0. Aplicar tema guardado inmediatamente al cargar la página
+    const themeToggleBtn = document.getElementById("theme-toggle-btn");
     if (localStorage.getItem("rbac_theme") === "light") {
       document.body.classList.add("light-theme");
     }
+    themeToggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-theme");
+      localStorage.setItem("rbac_theme", document.body.classList.contains("light-theme") ? "light" : "dark");
+    });
 
-    const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    if (themeToggleBtn) {
-      themeToggleBtn.addEventListener("click", () => {
-        document.body.classList.toggle("light-theme");
-        const isLight = document.body.classList.contains("light-theme");
-        localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
-      });
-    }
-
-    // 1. Guardia de Seguridad y Privilegios (Solo Nivel 3 o 4)
     const currentSession = requireAuth();
-    if (currentSession.level < 3) {
+    if (!currentSession || currentSession.level < 3) {
       alert("Acceso denegado: Se requieren privilegios de Director.");
       window.location.href = "dashboard.html";
     }
@@ -219,163 +271,243 @@
     const meta = ROLE_META[currentSession.level] || { name: "Director" };
     document.getElementById("display-role").textContent = `Perfil: ${meta.name} (Nivel ${currentSession.level})`;
 
-    // 2. Persistencia local para la tabla `schedules`
-    const SCHEDULES_STORAGE_KEY = "rbac_db_schedules";
-    const USERS_STORAGE_KEY = "rbac_users_database";
-    const SUBJECTS_STORAGE_KEY = "rbac_db_subjects";
+    const form          = document.getElementById("schedule-form");
+    const formTitle     = document.getElementById("form-title");
+    const teacherSel    = document.getElementById("f-teacher");
+    const subjectSel    = document.getElementById("f-subject");
+    const periodInp     = document.getElementById("f-period");
+    const startInp      = document.getElementById("f-start");
+    const endInp        = document.getElementById("f-end");
+    const roomInp       = document.getElementById("f-room");
+    const submitBtn     = document.getElementById("submit-btn");
+    const cancelEditBtn = document.getElementById("cancel-edit-btn");
+    const formError     = document.getElementById("form-error");
+    const tbody         = document.getElementById("schedules-table-body");
 
-    const DEFAULT_SCHEDULES = [
-      { studentUser: "Alumno1", subjectCode: "EMB-301", day: "Lunes", startTime: "07:00", endTime: "09:00", room: "Lab. Electrónica 3" },
-      { studentUser: "Alumno1", subjectCode: "ARQ-302", day: "Martes", startTime: "09:00", endTime: "11:00", room: "Aula 204" },
-      { studentUser: "Alumno1", subjectCode: "RED-201", day: "Miércoles", startTime: "11:00", endTime: "13:00", room: "Lab. Redes 1" },
-      { studentUser: "Alumno1", subjectCode: "OS-401",  day: "Jueves", startTime: "07:00", endTime: "09:00", room: "Lab. Sistemas 2" }
-    ];
+    const daysWrapper   = document.getElementById("days-container-wrapper");
+    const filterSemester= document.getElementById("filter-semester");
+    const filterDay     = document.getElementById("filter-day");
+    const filterSearch  = document.getElementById("filter-search");
 
-    function getSchedulesDB() {
-      const stored = localStorage.getItem(SCHEDULES_STORAGE_KEY);
-      if (!stored) {
-        localStorage.setItem(SCHEDULES_STORAGE_KEY, JSON.stringify(DEFAULT_SCHEDULES));
-        return DEFAULT_SCHEDULES;
+    let allSchedules = [];
+    let editingId    = null; // Almacena el ID si estamos editando
+
+    async function loadSelectOptions() {
+      try {
+        const [usersRes, subjectsRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/users`),
+          fetch(`${API_BASE_URL}/subjects`)
+        ]);
+
+        const users = await usersRes.json();
+        const subjects = await subjectsRes.json();
+
+        teacherSel.innerHTML = '<option value="">Seleccione un profesor...</option>';
+        users.filter(u => u.level >= 2).forEach(u => {
+          teacherSel.innerHTML += `<option value="${u.id}">${u.fullName} (${u.roleName})</option>`;
+        });
+
+        subjectSel.innerHTML = '<option value="">Seleccione una materia...</option>';
+        subjects.forEach(sub => {
+          subjectSel.innerHTML += `<option value="${sub.id}">[${sub.code}] ${sub.name} (Semestre ${sub.semester})</option>`;
+        });
+      } catch (err) {
+        console.error("Error cargando catálogos auxiliares:", err);
       }
-      return JSON.parse(stored);
     }
 
-    function saveSchedulesDB(updatedSchedules) {
-      localStorage.setItem(SCHEDULES_STORAGE_KEY, JSON.stringify(updatedSchedules));
+    async function loadSchedulesTable() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/schedules`);
+        if (!response.ok) throw new Error("Error al obtener los horarios.");
+        allSchedules = await response.json();
+        renderFilteredSchedules();
+      } catch (err) {
+        console.error("Error de conexión:", err);
+        tbody.innerHTML = `<tr><td colspan="5" style="color: #ef4444; text-align: center;">Error conectando con FastAPI.</td></tr>`;
+      }
     }
 
-    // Poblar selectores de Alumnos y Materias en el formulario
-    function populateSelectors() {
-      const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-      const students = users.filter(u => u.level === 1);
-      const studentSel = document.getElementById("f-student");
-      studentSel.innerHTML = "";
-      
-      students.forEach(s => {
-        const opt = document.createElement("option");
-        opt.value = s.user;
-        opt.textContent = `${s.fullName} (${s.user})`;
-        studentSel.appendChild(opt);
+    function renderFilteredSchedules() {
+      const semVal = filterSemester.value;
+      const dayVal = filterDay.value;
+      const textVal = filterSearch.value.toLowerCase().trim();
+
+      const filtered = allSchedules.filter(item => {
+        const matchSem = !semVal || String(item.semester) === semVal;
+        const matchDay = !dayVal || item.day === dayVal;
+        const matchText = !textVal || 
+          item.subjectCode.toLowerCase().includes(textVal) ||
+          (item.subjectName && item.subjectName.toLowerCase().includes(textVal)) ||
+          (item.teacherName && item.teacherName.toLowerCase().includes(textVal)) ||
+          item.room.toLowerCase().includes(textVal);
+
+        return matchSem && matchDay && matchText;
       });
 
-      const subjects = JSON.parse(localStorage.getItem(SUBJECTS_STORAGE_KEY) || "[]");
-      const subjectSel = document.getElementById("f-subject");
-      subjectSel.innerHTML = "";
-
-      subjects.forEach(sub => {
-        const opt = document.createElement("option");
-        opt.value = sub.code;
-        opt.textContent = `${sub.name} [${sub.code}]`;
-        subjectSel.appendChild(opt);
-      });
-    }
-
-    // 3. Lógica CRUD sobre la tabla de horarios
-    const form         = document.getElementById("schedule-crud-form");
-    const editIndexInp = document.getElementById("edit-index");
-    const studentSel   = document.getElementById("f-student");
-    const subjectSel   = document.getElementById("f-subject");
-    const daySel       = document.getElementById("f-day");
-    const startInp     = document.getElementById("f-start");
-    const endInp       = document.getElementById("f-end");
-    const roomInp      = document.getElementById("f-room");
-    const formTitle    = document.getElementById("form-title");
-    const submitBtn    = document.getElementById("submit-btn");
-    const cancelBtn    = document.getElementById("cancel-edit-btn");
-    const tbody        = document.getElementById("schedules-table-body");
-
-    function renderSchedulesTable() {
-      const schedules = getSchedulesDB();
-      const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-      const subjects = JSON.parse(localStorage.getItem(SUBJECTS_STORAGE_KEY) || "[]");
       tbody.innerHTML = "";
 
-      schedules.forEach((sch, index) => {
-        const uObj = users.find(u => u.user === sch.studentUser) || { fullName: sch.studentUser };
-        const sObj = subjects.find(s => s.code === sch.subjectCode) || { name: sch.subjectCode };
-        const tr = document.createElement("tr");
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">No se encontraron horarios con los filtros seleccionados.</td></tr>`;
+        return;
+      }
 
-        tr.innerHTML = `
-          <td><strong>${uObj.fullName}</strong></td>
-          <td>${sObj.name} <span style="color:var(--text-muted); font-size:0.75rem;">(${sch.subjectCode})</span></td>
-          <td>${sch.day}</td>
-          <td><span class="time-badge">${sch.startTime} - ${sch.endTime}</span></td>
-          <td>${sch.room}</td>
-          <td>
-            <div class="action-btns">
-              <button class="btn-sm" onclick="editSchedule(${index})">Editar</button>
-              <button class="btn-sm btn-del" onclick="deleteSchedule(${index})">Eliminar</button>
-            </div>
-          </td>
+      filtered.forEach((sch) => {
+        tbody.innerHTML += `
+          <tr>
+            <td>
+              <strong>${sch.day}</strong><br>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">${sch.startTime} - ${sch.endTime}</span>
+            </td>
+            <td>
+              <strong>${sch.subjectCode}</strong><br>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">${sch.subjectName || ''}</span>
+            </td>
+            <td>${sch.teacherName || sch.studentUser}</td>
+            <td><code>${sch.room}</code></td>
+            <td>
+              <div class="action-btns">
+                <button class="btn-edit" onclick="startEdit(${sch.id})">Editar</button>
+                <button class="btn-delete" onclick="deleteSchedule(${sch.id})">Eliminar</button>
+              </div>
+            </td>
+          </tr>
         `;
-        tbody.appendChild(tr);
       });
     }
 
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const schedules = getSchedulesDB();
-      const idx = parseInt(editIndexInp.value, 10);
+    // Cargar datos en el formulario para editar
+    window.startEdit = function(id) {
+      const item = allSchedules.find(s => s.id === id);
+      if (!item) return;
 
-      const scheduleRecord = {
-        studentUser: studentSel.value,
-        subjectCode: subjectSel.value,
-        day: daySel.value,
-        startTime: startInp.value,
-        endTime: endInp.value,
-        room: roomInp.value.trim()
-      };
+      editingId = id;
+      formTitle.textContent = `Editar Horario (ID: ${id})`;
+      submitBtn.textContent = "Actualizar Cambios";
+      cancelEditBtn.style.display = "block";
 
-      if (idx === -1) {
-        schedules.push(scheduleRecord);
-      } else {
-        schedules[idx] = scheduleRecord;
-      }
+      // Seleccionar valores en el form
+      teacherSel.value = item.user_id || ""; 
+      // Si el user_id no viniera directo, buscamos por coincidencia de nombre o ID si tu endpoint lo devuelve. 
+      // Aseguremos que el objeto devuelto por GET /api/schedules incluya user_id y subject_id:
+      // Vamos a ajustar el SELECT de SQLite para incluir user_id y subject_id explícitamente abajo.
+      
+      teacherSel.value = item.user_id;
+      subjectSel.value = item.subject_id;
+      periodInp.value = item.semester_period || "2026-1";
+      startInp.value = item.startTime;
+      endInp.value = item.endTime;
+      roomInp.value = item.room;
 
-      saveSchedulesDB(schedules);
-      resetForm();
-      renderSchedulesTable();
-    });
+      // Al editar, convertimos los checkboxes en un selector de un solo día o marcamos ese día exclusivamente
+      document.querySelectorAll('input[name="day"]').forEach(cb => {
+        cb.checked = (cb.value === item.day);
+      });
 
-    window.editSchedule = function(index) {
-      const schedules = getSchedulesDB();
-      const s = schedules[index];
-      editIndexInp.value = index;
-      studentSel.value = s.studentUser;
-      subjectSel.value = s.subjectCode;
-      daySel.value = s.day;
-      startInp.value = s.startTime;
-      endInp.value = s.endTime;
-      roomInp.value = s.room;
-
-      formTitle.textContent = "Editando Bloque de Horario";
-      submitBtn.textContent = "Actualizar Horario";
-      cancelBtn.style.display = "block";
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    window.deleteSchedule = function(index) {
-      const schedules = getSchedulesDB();
-      if (confirm("¿Seguro que deseas eliminar este bloque de horario?")) {
-        schedules.splice(index, 1);
-        saveSchedulesDB(schedules);
-        renderSchedulesTable();
-      }
-    };
-
-    function resetForm() {
+    function resetFormMode() {
+      editingId = null;
+      formTitle.textContent = "Asignar Horario / Clase";
+      submitBtn.textContent = "Asignar Clase";
+      cancelEditBtn.style.display = "none";
       form.reset();
-      editIndexInp.value = "-1";
-      formTitle.textContent = "Asignar Nuevo Horario";
-      submitBtn.textContent = "Guardar Horario";
-      cancelBtn.style.display = "none";
+      periodInp.value = "2026-1";
+      document.querySelectorAll('input[name="day"]').forEach(cb => cb.checked = false);
     }
 
-    cancelBtn.addEventListener("click", resetForm);
+    cancelEditBtn.addEventListener("click", resetFormMode);
+
+    async function deleteSchedule(id) {
+      if (!confirm("¿Estás seguro de eliminar esta asignación de horario?")) return;
+      try {
+        const response = await fetch(`${API_BASE_URL}/schedules/${id}`, { method: "DELETE" });
+        if (!response.ok) throw new Error("No se pudo eliminar el registro.");
+        loadSchedulesTable();
+        if (editingId === id) resetFormMode();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      formError.textContent = "";
+
+      const checkedDays = Array.from(document.querySelectorAll('input[name="day"]:checked')).map(cb => cb.value);
+      if (checkedDays.length === 0) {
+        formError.textContent = "Debes seleccionar al menos un día de la semana.";
+        return;
+      }
+
+      try {
+        if (editingId) {
+          // MODO EDICIÓN (Toma el primer día marcado si editó)
+          const payload = {
+            user_id: parseInt(teacherSel.value, 10),
+            subject_id: parseInt(subjectSel.value, 10),
+            semester_period: periodInp.value.trim(),
+            day_of_week: checkedDays[0],
+            start_time: startInp.value,
+            end_time: endInp.value,
+            room: roomInp.value.trim()
+          };
+
+          const response = await fetch(`${API_BASE_URL}/schedules/${editingId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail || "Error al actualizar el horario.");
+
+          resetFormMode();
+          loadSchedulesTable();
+
+        } else {
+          // MODO CREACIÓN (Múltiples días)
+          const basePayload = {
+            user_id: parseInt(teacherSel.value, 10),
+            subject_id: parseInt(subjectSel.value, 10),
+            semester_period: periodInp.value.trim(),
+            start_time: startInp.value,
+            end_time: endInp.value,
+            room: roomInp.value.trim()
+          };
+
+          for (const day of checkedDays) {
+            const payload = { ...basePayload, day_of_week: day };
+            const response = await fetch(`${API_BASE_URL}/schedules`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              const data = await response.json();
+              throw new Error(data.detail || `Error al registrar horario para ${day}.`);
+            }
+          }
+
+          form.reset();
+          periodInp.value = "2026-1";
+          loadSchedulesTable();
+        }
+      } catch (err) {
+        formError.textContent = err.message;
+      }
+    });
+
+    filterSemester.addEventListener("change", renderFilteredSchedules);
+    filterDay.addEventListener("change", renderFilteredSchedules);
+    filterSearch.addEventListener("input", renderFilteredSchedules);
+
     document.getElementById("logout-btn").addEventListener("click", logoutUser);
 
-    // Arranque
-    populateSelectors();
-    renderSchedulesTable();
+    loadSelectOptions();
+    loadSchedulesTable();
   </script>
 </body>
 </html>
