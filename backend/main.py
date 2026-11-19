@@ -323,3 +323,128 @@ def save_attendance(payload: AttendanceCreate):
     conn.commit()
     conn.close()
     return {"message": "Asistencia guardada correctamente."}
+
+# =========================================================================
+# MODELOS PYDANTIC PARA CALIFICACIONES Y KARDEX
+# =========================================================================
+class GradeCreate(BaseModel):
+    user_id: int          # ID del alumno
+    subject_id: int       # ID de la materia
+    semester_period: str  # Ej. "2026-1"
+    unit_1: Optional[float] = None
+    unit_2: Optional[float] = None
+    unit_3: Optional[float] = None
+    unit_4: Optional[float] = None
+    status: str = "Cursando"
+
+
+# =========================================================================
+# ENDPOINTS DE CALIFICACIONES Y KARDEX
+# =========================================================================
+@app.get("/api/grades")
+def get_grades(student_id: Optional[int] = None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    query = """
+        SELECT g.id, g.user_id, u_student.full_name as studentName,
+               g.subject_id, sub.code as subjectCode, sub.name as subjectName, sub.credits,
+               g.semester_period, g.unit_1, g.unit_2, g.unit_3, g.unit_4, g.status
+        FROM student_grades g
+        JOIN users u_student ON g.user_id = u_student.id
+        JOIN subjects sub ON g.subject_id = sub.id
+    """
+    
+    if student_id:
+        query += " WHERE g.user_id = ?"
+        rows = cursor.execute(query, (student_id,)).fetchall()
+    else:
+        rows = cursor.execute(query).fetchall()
+        
+    conn.close()
+    return [dict(row) for row in rows]
+
+@app.post("/api/grades")
+def save_grade(payload: GradeCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Verificamos si ya existe un registro para este alumno y materia en el mismo periodo
+        cursor.execute(
+            """
+            SELECT id FROM student_grades 
+            WHERE user_id = ? AND subject_id = ? AND semester_period = ?
+            """,
+            (payload.user_id, payload.subject_id, payload.semester_period)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            # Si ya existe, actualizamos las unidades y el estatus
+            cursor.execute(
+                """
+                UPDATE student_grades 
+                SET unit_1 = ?, unit_2 = ?, unit_3 = ?, unit_4 = ?, status = ?
+                WHERE id = ?
+                """,
+                (payload.unit_1, payload.unit_2, payload.unit_3, payload.unit_4, payload.status, existing["id"])
+            )
+            msg = "Calificaciones actualizadas con éxito."
+            new_id = existing["id"]
+        else:
+            # Si no existe, lo insertamos nuevo
+            cursor.execute(
+                """
+                INSERT INTO student_grades (user_id, subject_id, semester_period, unit_1, unit_2, unit_3, unit_4, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (payload.user_id, payload.subject_id, payload.semester_period, payload.unit_1, payload.unit_2, payload.unit_3, payload.unit_4, payload.status)
+            )
+            msg = "Calificación registrada con éxito."
+            new_id = cursor.lastrowid
+
+        conn.commit()
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Error de integridad en base de datos: {e}")
+    
+    conn.close()
+    return {"message": msg, "id": new_id}
+
+@app.delete("/api/grades/{grade_id}")
+def delete_grade(grade_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM student_grades WHERE id = ?", (grade_id,))
+    conn.commit()
+    conn.close()
+    return {"message": f"Registro de calificaciones con ID {grade_id} eliminado."}
+
+class GradeUpdate(BaseModel):
+    unit_1: Optional[float] = None
+    unit_2: Optional[float] = None
+    unit_3: Optional[float] = None
+    unit_4: Optional[float] = None
+    status: str = "Cursando"
+
+@app.put("/api/grades/{grade_id}")
+def update_grade(grade_id: int, payload: GradeUpdate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """
+            UPDATE student_grades 
+            SET unit_1 = ?, unit_2 = ?, unit_3 = ?, unit_4 = ?, status = ?
+            WHERE id = ?
+            """,
+            (payload.unit_1, payload.unit_2, payload.unit_3, payload.unit_4, payload.status, grade_id)
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Registro de calificaciones no encontrado.")
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        raise HTTPException(status_code=400, detail=f"Error de integridad: {e}")
+    conn.close()
+    return {"message": f"Calificaciones con ID {grade_id} actualizadas con éxito."}

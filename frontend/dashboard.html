@@ -203,7 +203,12 @@ window.handleModuleClick = function(moduleId) {
       
       // Si el usuario hace clic en Calificaciones, lo mandamos a su sub-pantalla
       if (moduleId === "MOD_GRADES") {
-        window.location.href = "grades.html";
+        // Si es Alumnos (Nivel 1), lo mandamos a su kardex personal. Si es Maestro o Director, al gestor.
+        if (currentSession.level === 1) {
+          window.location.href = "grades.html";
+        } else {
+          window.location.href = "manage_grades.html";
+        }
       } else if (moduleId === "MOD_SCHEDULE") {
         window.location.href = "schedule.html";
       } else if (moduleId === "MOD_STUDENT_INFO") {
