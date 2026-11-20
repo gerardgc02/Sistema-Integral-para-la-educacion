@@ -6,7 +6,9 @@
   <title>Panel de Control - Sistema RBAC</title>
   <link rel="stylesheet" href="css/styles.css">
   <style>
-    /* Estilo auxiliar para el botón de tema en el dashboard */
+    /**
+     * @brief Estilo auxiliar para el botón de alternancia de tema claro/oscuro en el dashboard.
+     */
     .btn-theme {
       background: transparent;
       border: 1px solid var(--border);
@@ -23,8 +25,9 @@
   </style>
 </head>
 <body>
-
+  <!-- /** @brief Contenedor principal del panel de control RBAC. */ -->
   <div class="dashboard">
+    <!-- /** @brief Barra superior con información de sesión, insignia de rol y controles globales. */ -->
     <header class="topbar">
       <div class="user-meta">
         <div>
@@ -40,19 +43,33 @@
       </div>
     </header>
 
+    <!-- /** @brief Contenedor donde se renderizan dinámicamente las tarjetas de módulos permitidos. */ -->
     <div id="modules-container" class="modules-grid"></div>
 
+    <!-- /** @brief Consola de eventos del sistema para trazabilidad visual en el cliente. */ -->
     <div class="console-log" id="system-console">
       [SYS] Esperando interacción...
     </div>
   </div>
 
-  <!-- Importamos tu módulo de autenticación intacto -->
+  <!-- /** @brief Módulo externo encargado de sesión, roles (ROLE_META), requireAuth() y logoutUser(). */ -->
   <script src="js/auth.js"></script>
   <script>
-    // 0. Gestión del Tema Oscuro / Claro
+    /**
+     * @file dashboard.html
+     * @brief Panel principal dinámico filtrado por rol (RBAC) para el Sistema Escolar.
+     * @details Aplica el tema persistido en `localStorage`, valida la sesión activa,
+     *          filtra los módulos según `currentSession.level` y redirige a las vistas correspondientes.
+     */
+
+    /**
+     * @defgroup theme_management Gestión de Tema Claro / Oscuro
+     * @{
+     */
+
+    /** @brief Botón para alternar entre tema oscuro y claro. */
     const themeToggleBtn = document.getElementById("theme-toggle-btn");
-    
+
     // Al cargar, aplicamos inmediatamente el tema guardado
     if (localStorage.getItem("rbac_theme") === "light") {
       document.body.classList.add("light-theme");
@@ -64,10 +81,23 @@
       localStorage.setItem("rbac_theme", isLight ? "light" : "dark");
     });
 
-    // 1. Verificación de seguridad
+    /** @} */
+
+    /**
+     * @defgroup session_and_catalog Sesión y Catálogo de Módulos RBAC
+     * @{
+     */
+
+    /**
+     * @brief Sesión autenticada del usuario actual.
+     * @details Si no hay sesión válida, `requireAuth()` gestiona la redirección/bloqueo correspondiente.
+     */
     const currentSession = requireAuth();
 
-    // 2. Catálogo de módulos filtrados por Nivel (1: Alumno, 2: Maestro, 3: Director, 4: Admin)
+    /**
+     * @brief Catálogo maestro de módulos del sistema y sus niveles de acceso permitidos.
+     * @details Niveles: `1` = Alumno, `2` = Maestro, `3` = Director, `4` = Admin.
+     */
     const SYSTEM_MODULES = [
       // Módulos generales / compartidos (Niveles 1, 2, 3, 4)
       {
@@ -128,6 +158,7 @@
         desc: "Gestión de grupos, listas de asistencia y temarios a cargo.",
         allowedLevels: [2]
       },
+
       // Módulos exclusivos de Dirección / Administración (Nivel 3 y 4)
       {
         id: "MOD_USER_MGMT",
@@ -149,14 +180,32 @@
       },
     ];
 
+    /** @brief Contenedor DOM de la cuadrícula de módulos. */
     const modulesGrid = document.getElementById("modules-container");
+
+    /** @brief Elemento DOM de la consola de estado en pantalla. */
     const sysConsole  = document.getElementById("system-console");
 
+    /** @} */
+
+    /**
+     * @defgroup dashboard_actions Renderizado y Navegación de Módulos
+     * @{
+     */
+
+    /**
+     * @brief Escribe un mensaje con marca de tiempo en la consola del sistema.
+     * @param {string} msg Texto descriptivo del evento a mostrar.
+     */
     function logToConsole(msg) {
       const time = new Date().toLocaleTimeString();
       sysConsole.textContent = `[${time}] ${msg}`;
     }
 
+    /**
+     * @brief Renderiza los datos del usuario en la barra superior y las tarjetas de módulos autorizados.
+     * @details Filtra `SYSTEM_MODULES` comprobando si `currentSession.level` está incluido en `mod.allowedLevels`.
+     */
     function renderDashboard() {
       if (!currentSession) return;
 
@@ -165,7 +214,7 @@
 
       document.getElementById("display-name").textContent = currentSession.fullName;
       document.getElementById("display-role").textContent = `Usuario: ${currentSession.user} | Perfil: ${meta.name}`;
-      
+
       const badge = document.getElementById("display-badge");
       badge.textContent = `LVL ${currentSession.level} - ${meta.name.toUpperCase()}`;
       badge.style.background = meta.color;
@@ -198,9 +247,13 @@
       });
     }
 
-window.handleModuleClick = function(moduleId) {
+    /**
+     * @brief Maneja el clic en "Acceder al Módulo" y navega a la vista correspondiente según el rol.
+     * @param {string} moduleId Identificador del módulo seleccionado (por ejemplo, `"MOD_GRADES"`).
+     */
+    window.handleModuleClick = function(moduleId) {
       logToConsole(`Abriendo el módulo [${moduleId}] con credenciales de Nivel ${currentSession.level}.`);
-      
+
       // Si el usuario hace clic en Calificaciones, lo mandamos a su sub-pantalla
       if (moduleId === "MOD_GRADES") {
         // Si es Alumnos (Nivel 1), lo mandamos a su kardex personal. Si es Maestro o Director, al gestor.
@@ -215,8 +268,7 @@ window.handleModuleClick = function(moduleId) {
         window.location.href = "student_info.html";
       } else if (moduleId === "MOD_ENROLLED_SUBJECTS") {
         window.location.href = "subjects.html";
-      }
-      else if (moduleId === "MOD_USER_MGMT") {
+      } else if (moduleId === "MOD_USER_MGMT") {
         window.location.href = "manage_users.html";
       } else if (moduleId === "MOD_SUBJECT_MGMT") {
         window.location.href = "manage_subjects.html";
@@ -233,6 +285,8 @@ window.handleModuleClick = function(moduleId) {
       logToConsole(`Sesión iniciada como ${currentSession.user} (Nivel ${currentSession.level} - ${meta.name}).`);
       renderDashboard();
     }
+
+    /** @} */
   </script>
 </body>
 </html>
