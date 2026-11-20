@@ -34,34 +34,57 @@ Sistema de gestión escolar basado en Control de Acceso Basado en Roles (RBAC), 
 └── readme.md
 ```
 ## ⚙️ Guía de Instalación y Configuración
-1. Prerrequisitos
-Asegúrate de tener instalado Python 3.10+ en tu equipo.
-2. Instalar Dependencias del BackendAbre tu terminal en la raíz del proyecto e instala los paquetes necesarios para FastAPI y Uvicorn:
-```Bash
- pip install fastapi uvicorn
-```
-3. Inicializar la Base de DatosEjecuta el script de configuración para crear y poblar la base de datos SQLite con los esquemas relacionales y usuarios de prueba:
-```Bash
-python3 backend/init_db.py
+
+### 1. Prerrequisitos
+Asegúrate de tener instalado **Python 3.10+** en tu equipo.
+
+### 2. Crear entorno virtual e instalar dependencias
+Abre tu terminal en la **raíz del proyecto**, crea un entorno virtual e instala las dependencias del backend:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install fastapi uvicorn pydantic bcrypt
 ```
 
+3. Inicializar la base de datos
+
+Con el entorno virtual activado, ejecuta el script para generar database.db con el esquema, datos iniciales y contraseñas hasheadas con bcrypt:
+```Bash
+python backend/init_db.py
+```
 ## 🚀 ¿Cómo Ejecutar el Sistema?
-Para que el frontend se comunique correctamente con la base de datos, debes mantener dos servicios corriendo en paralelo:
 
-### Paso A: Encender el Servidor Backend (FastAPI)
-1. Ubícate en la carpeta /backend desde tu terminal:
-```Bash
-cd backend
-```
-2. Inicia el servidor de desarrollo con Uvicorn:Bashuvicorn main:app --reload
-El servidor estará disponible en http://127.0.0.1:8000.Puedes probar la documentación interactiva en http://127.0.0.1:8000/docs.
+Para trabajar con el sistema completo, mantén dos terminales abiertas en paralelo:
+Paso A: Encender el Servidor Backend (FastAPI)
 
-### Paso B: Levantar el Frontend (Interfaz Web)
-1. Abre una nueva pestaña o ventana en tu terminal y colócate en la carpeta raíz del proyecto.
-2. Sirve los archivos estáticos de la carpeta frontend mediante un servidor local (puedes usar la extensión Live Server de VS Code apuntando a login.html, o levantar un servidor web rápido con Python):
+Desde la raíz del proyecto, activa el entorno virtual (si aún no está activo) y entra a backend:
+
 ```Bash
-python3 -m http.server 5500
+    source .venv/bin/activate
+    cd backend
 ```
+Inicia el servidor en modo desarrollo:
+ ```Bash
+    uvicorn main:app --reload
+```
+API disponible en: http://127.0.0.1:8000
+
+Documentación interactiva (Swagger): http://127.0.0.1:8000/docs
+
+Paso B: Levantar el Frontend (Interfaz Web)
+
+Abre otra pestaña o ventana en tu terminal y ubícate en la carpeta frontend:
+```Bash
+cd frontend
+```
+Levanta un servidor local estático (o usa la extensión Live Server de VS Code):
+```Bash
+python -m http.server 5500
+```
+Abre en tu navegador http://127.0.0.1:5500/login.html (o http://127.0.0.1:5500).
+
 3. Abre tu navegador favorito (Firefox / Chrome) e ingresa a:
 👉 http://127.0.0.1:5500/frontend/login.html
 
