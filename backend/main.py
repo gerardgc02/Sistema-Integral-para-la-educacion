@@ -3,11 +3,13 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Optional
 
+import bcrypt
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
 
 # =========================================================================
 # CONFIGURACIÓN DE LOGGING
@@ -17,6 +19,25 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
 )
 logger = logging.getLogger("rbac_api")
+
+
+# =========================================================================
+# UTILIDADES DE CONTRASEÑAS (BCRYPT)
+# =========================================================================
+def hash_password(plain_password: str) -> str:
+    hashed = bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt())
+    return hashed.decode("utf-8")
+
+
+def verify_password(plain_password: str, stored_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            stored_hash.encode("utf-8"),
+        )
+    except ValueError:
+        return False
+
 
 # =========================================================================
 # 1. INSTANCIAR LA APLICACIÓN
@@ -50,7 +71,12 @@ def get_db():
         conn.close()
 
 
-def error_response(status_code: int, code: str, message: str, detail: Optional[str] = None) -> JSONResponse:
+def error_response(
+    status_code: int,
+    code: str,
+    message: str,
+    detail: Optional[str] = None,
+) -> JSONResponse:
     payload = {
         "error": {
             "code": code,
@@ -178,9 +204,9 @@ class LoginPayload(BaseModel):
 
 
 class UserCreate(BaseModel):
-    username: str
-    password_hash: str
-    full_name: str
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=6, max_length=72)
+    full_name: str = Field(..., min_length=1)
     role_id: int
 
 
@@ -252,15 +278,15 @@ def login(payload: LoginPayload):
     with get_db() as conn:
         user = conn.execute(
             """
-            SELECT u.id, u.username, u.full_name, u.role_id, r.name as role_name
+            SELECT u.id, u.username, u.password_hash, u.full_name, u.role_id, r.name as role_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
-            WHERE u.username = ? AND u.password_hash = ?
+            WHERE u.username = ?
             """,
-            (clean_user, payload.password),
+            (clean_user,),
         ).fetchone()
 
-    if not user:
+    if not user or not verify_password(payload.password, user["password_hash"]):
         logger.warning("Intento de login fallido para usuario '%s'", clean_user)
         raise HTTPException(status_code=401, detail="Credenciales inválidas o usuario no encontrado.")
 
@@ -281,7 +307,7 @@ def get_users():
     with get_db() as conn:
         rows = conn.execute(
             """
-            SELECT u.id, u.username as user, u.password_hash as pass,
+            SELECT u.id, u.username as user,
                    u.full_name as fullName, u.role_id as level, r.name as roleName
             FROM users u
             JOIN roles r ON u.role_id = r.id
@@ -292,11 +318,12 @@ def get_users():
 
 @app.post("/api/users")
 def create_user(payload: UserCreate):
+    hashed_pw = hash_password(payload.password)
     with get_db() as conn:
         try:
             cursor = conn.execute(
                 "INSERT INTO users (username, password_hash, full_name, role_id) VALUES (?, ?, ?, ?)",
-                (payload.username.strip(), payload.password_hash, payload.full_name.strip(), payload.role_id),
+                (payload.username.strip(), hashed_pw, payload.full_name.strip(), payload.role_id),
             )
             conn.commit()
             new_id = cursor.lastrowid
